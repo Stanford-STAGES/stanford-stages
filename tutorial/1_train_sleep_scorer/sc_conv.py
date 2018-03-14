@@ -1,0 +1,1 @@
+../../inf_train/sc_conv.py
