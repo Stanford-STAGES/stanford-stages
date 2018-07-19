@@ -248,81 +248,8 @@ def random_autocorr(inputs, config, modality, batch_size):
     return meanPool
 
 
-def small_octave(inputs, config, modality):
-    if modality == 'eeg':
-        nIn = 10
-        nOut = [64, 128, 256]
-    elif modality == 'eog':
-        nIn = 10
-        nOut = [64, 128, 256]
-    else:
-        nIn = 5
-        nOut = [16, 32, 64]
-
-    conv1 = conv_block(config, inputs, 'conv1' + modality, [1, 12, nIn, nOut[0]], 3)
-    conv2 = conv_block(config, conv1, 'conv2' + modality, [1, 5, nOut[0], nOut[0]], 2)
-
-    pool1 = tf.nn.max_pool(conv2, ksize=[1, 1, 3, 1], strides=[1, 1, 3, 1],
-                           padding='SAME', name='pool1' + modality)
-
-    conv3 = conv_block(config, pool1, 'conv3' + modality, [1, 5, nOut[0], nOut[1]], 1)
-    conv4 = conv_block(config, conv3, 'conv4' + modality, [1, 5, nOut[1], nOut[1]], 1)
-
-    pool2 = tf.nn.max_pool(conv4, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1],
-                           padding='SAME', name='pool2' + modality)
-
-    conv5 = conv_block(config, pool2, 'conv5' + modality, [1, 3, nOut[1], nOut[2]], 1)
-    conv6 = conv_block(config, conv5, 'conv6' + modality, [1, 3, nOut[2], nOut[2]], 1)
-
-    meanPool = tf.reduce_mean(conv6, 2)
-
-    return meanPool
-
-
-def large_octave(inputs, config, modality):
-    if modality == 'eeg':
-        nIn = 10
-        nOut = [64, 128, 256, 512]
-    elif modality == 'eog':
-        nIn = 10
-        nOut = [64, 128, 256, 512]
-    else:
-        nIn = 5
-        nOut = [16, 32, 64, 128]
-
-    conv1 = conv_block(config, inputs, 'conv1' + modality, [1, 12, nIn, nOut[0]], 3)
-    conv2 = conv_block(config, conv1, 'conv2' + modality, [1, 5, nOut[0], nOut[0]], 1)
-
-    pool1 = tf.nn.max_pool(conv2, ksize=[1, 1, 3, 1], strides=[1, 1, 3, 1],
-                           padding='SAME', name='pool1' + modality)
-
-    conv3 = conv_block(config, pool1, 'conv3' + modality, [1, 3, nOut[0], nOut[1]], 1)
-    conv4 = conv_block(config, conv3, 'conv4' + modality, [1, 3, nOut[1], nOut[1]], 1)
-
-    pool2 = tf.nn.max_pool(conv4, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1],
-                           padding='SAME', name='pool2' + modality)
-
-    conv5 = conv_block(config, pool2, 'conv5' + modality, [1, 3, nOut[1], nOut[2]], 1)
-    conv6 = conv_block(config, conv5, 'conv6' + modality, [1, 3, nOut[2], nOut[2]], 1)
-
-    pool3 = tf.nn.max_pool(conv6, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1],
-                           padding='SAME', name='pool3' + modality)
-
-    conv7 = conv_block(config, pool3, 'conv7' + modality, [1, 3, nOut[2], nOut[3]], 1)
-    conv8 = conv_block(config, conv7, 'conv8' + modality, [1, 3, nOut[3], nOut[3]], 1)
-
-    meanPool = tf.reduce_mean(conv6, 2)
-
-    return meanPool
-
-
 def main(inputs, config, modality, batch_size):
-    if config.model_name[0:3] == 'oct':
-        if config.model_name[4:6] == 'lh':
-            hidden = large_octave(inputs, config, modality)
-        else:
-            hidden = small_octave(inputs, config, modality)
-    elif config.model_name[0:2] == 'ac':
+    if config.model_name[0:2] == 'ac':
         if config.model_name[3:5] == 'lh':
             hidden = large_autocorr(inputs, config, modality, batch_size)
         elif config.model_name[3:5] == 'rh':
