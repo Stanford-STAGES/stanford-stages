@@ -343,13 +343,6 @@ class Hypnodensity(object):
         self.channels_used[self.channels[notUsedC]] = []
         self.channels_used[self.channels[notUsedO]] = []
 
-    def score_data(self):
-        self.hypnodensity = list()
-        for l in self.config.models_used:
-            hyp = inf_hypnodensity.run_data(self.encodedD,l,self.config.hypnodensity_model_root_path)
-            hyp = self.softmax(hyp)
-            self.hypnodensity.append(hyp)
-
     def softmax(self,x):
 
         #e_x = np.exp(x - np.max(x))
@@ -364,8 +357,17 @@ class Hypnodensity(object):
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir = root_model_path)
         #root_train_data_dir,
         #root_test_data_dir))
-        hyp = run(dat,ac_config)
+        hyp = Hypnodensity.run(dat,ac_config)
         return hyp
+
+    def score_data(self):
+        self.hypnodensity = list()
+        for l in self.config.models_used:
+            hyp = Hypnodensity.run_data(self.encodedD,l,self.config.hypnodensity_model_root_path)
+            hyp = self.softmax(hyp)
+            self.hypnodensity.append(hyp)
+
+
 
     def segment(dat,ac_config):
 
@@ -401,7 +403,7 @@ class Hypnodensity(object):
 
                 state = np.zeros([1,ac_config.num_hidden*2])
 
-                dat, Nextra, prediction, num_batches = segment(dat, ac_config)
+                dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
 
                     x = dat[:,i*ac_config.eval_nseg_atonce*ac_config.segsize:(i+1)*ac_config.eval_nseg_atonce*ac_config.segsize,:]

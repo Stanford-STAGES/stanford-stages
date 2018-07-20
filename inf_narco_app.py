@@ -17,9 +17,9 @@ warnings.simplefilter('ignore',FutureWarning)  #warnings.filterwarnings("ignore"
 # for getting predictions
 import numpy as np
 import scipy.io as sio
-import gpflow as gpf
-import tensorflow as tf
 
+import tensorflow as tf
+import gpflow as gpf
 import random
 
 # For hypnodensity plotting ...
@@ -141,17 +141,12 @@ class NarcoApp(object):
         return self.Hypnodensity.get_hypnodensity()
 
     def get_narco_gpmodels(self):
-        #gpmodels = [[]]*len(self.models_used)
-        #return gpmodels
+
         return self.models_used
 
     def get_hypnodensity_features(self, modelName, idx):
         return self.Hypnodensity.get_features(modelName, idx)
-        # pdb.set_trace()
-        # selected_features  = self.config.narco_prediction_selected_features
-        # X = self.extract_features.extract(self.hypnodensity[idx])
-        # X = self.extract_features.scale_features(X,modelName)
-        # return X[selected_features].T
+
 
     def get_narco_prediction(self):     # ,current_subset, num_subjects, num_models, num_folds):
         # Initialize dummy variables
