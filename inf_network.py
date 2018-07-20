@@ -14,7 +14,6 @@ class SCModel(object):
         self._targets = tf.placeholder(tf.float32, [None, ac_config.num_classes], name='ModelOutput')
         self._mask = tf.placeholder(tf.float32, [None], name='ModelWeights')
 
-        # self._batch_size = tf.placeholder_with_default(ac_config.batch_size, [1,], name='BatchSize')
         self._batch_size = tf.placeholder(tf.int32, name='BatchSize')
         self._learning_rate = tf.placeholder(tf.float32, name='LearningRate')
 
