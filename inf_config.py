@@ -9,8 +9,13 @@ class AppConfig(object):
         # Model folder
         self.models_used = ['ac_rh_ls_lstm_01', 'ac_rh_ls_lstm_02',
                             'ac_rh_ls_lstm_03', 'ac_rh_ls_lstm_04',
-                            'ac_rh_ls_lstm_05', 'ac_rh_ls_lstm_06']
-        self.models_used = ['ac_rh_ls_lstm_01']
+                            'ac_rh_ls_lstm_05', 'ac_rh_ls_lstm_06',
+                            'ac_rh_ls_lstm_07', 'ac_rh_ls_lstm_08',
+                            'ac_rh_ls_lstm_09', 'ac_rh_ls_lstm_10',
+                            'ac_rh_ls_lstm_11', 'ac_rh_ls_lstm_12',
+                            'ac_rh_ls_lstm_13', 'ac_rh_ls_lstm_14',
+                            'ac_rh_ls_lstm_15', 'ac_rh_ls_lstm_16']
+        #self.models_used = ['ac_rh_ls_lstm_01']
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
@@ -41,7 +46,7 @@ class AppConfig(object):
         self.lightsOn = []
 
         # Related to classifying narcolepsy from hypnodensity features
-        self.narco_classifier_path = '/Users/unknown/git/informaton.org/narco/cgi-bin/ml/gp'
+        self.narco_classifier_path = './ml/gp'
 
         self.narco_prediction_num_folds = 5 # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560,
@@ -75,7 +80,7 @@ class Config(object):
         self.hypnodensity_model_dir = os.path.join(root_model_dir, scope, model_name)
 
         # Data
-        
+
         # Configuration
         self.model_name = model_name
         self.scope = scope
