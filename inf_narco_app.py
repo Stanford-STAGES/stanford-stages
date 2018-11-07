@@ -48,9 +48,16 @@ def main(edfFilename, configInput): # configInput is object with additional sett
 
     channel_categories = {
         'central': 'C3',
+        'central3': 'C3',
+        'central4': 'C4',
+        'centrals': ('C3','C4'),
         'occipital': 'O1',
+        'occipital1': 'O1',
+        'occipital2': 'O2',
+        'occipitals': ('O1','O2'),
         'eog_l': 'EOG-L',
         'eog_r': 'EOG-R',
+        'eogs': ('EOG-L','EOG-R'),
         'chin_emg': 'EMG'
     }
 
@@ -59,10 +66,15 @@ def main(edfFilename, configInput): # configInput is object with additional sett
     for channel_category,channel_index in configInput["channel_indices"].items():
         channel_label = channel_categories.get(channel_category,None)
         if channel_label is not None:
-            appConfig.channels_used[channel_label] = channel_index
+            if type(channel_index) is list or type(channel_index) is tuple:   # ==type(tuple):
+                for i in range(len(channel_index)):
+                    appConfig.channels_used[channel_label[i]] = channel_index[i]
+            else:
+                appConfig.channels_used[channel_label] = channel_index
 
-    appConfig.lightsOff = configInput.get('lightsOff',33)
-    appConfig.lightsOn = configInput.get('lightsOn',1152)
+
+    appConfig.lightsOff = configInput.get('lightsOff',[]) #33)
+    appConfig.lightsOn = configInput.get('lightsOn',[]) #1152)
     #appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
     hyp = {}
     hyp['showplot'] = False
@@ -119,6 +131,7 @@ def renderHypnodensity(hypnodensity, showPlot = False, savePlot = False, fileNam
         print("Showing hypnodensity")
         plt.show()
 
+    pdb.set_trace()
 
 class NarcoApp(object):
 
@@ -233,6 +246,7 @@ if __name__ == '__main__':
             edfFile = sys.argv[1]
             #print(sys.argv[2]);
             jsonObj = json.loads(sys.argv[2])
+            # jsonObj = json.loads('{"channel_indices":{"central":2,"occipital":3,"eog_l":0,"eog_r":0,"chin_emg":3}}')
             try:
                 main(edfFile,jsonObj)
             except OSError as oserr:

@@ -134,7 +134,11 @@ class Hypnodensity(object):
 
         count = -1
         enc = []
+        # Central, Occipital, EOG and chin
 
+        numIterations = 4;  # there are actually 5 for CC, but this is just for displaying progress
+        numConcatenates = 5;
+        pdb.set_trace()
         for c in self.channels: # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
             start_time = time.time()
 
@@ -162,13 +166,13 @@ class Hypnodensity(object):
                 C = np.conj(np.fft.fft(B2,axis=0))
 
                 elapsed_time = time.time()-start_time
-                myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f"%(count+1,len(self.channels),elapsed_time));
+                myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f"%(count+1,numIterations,elapsed_time));
                 start_time = time.time()
 
                 CC = np.real(np.fft.fftshift(np.fft.ifft(np.multiply(F,C),axis=0),axes=0))
 
                 elapsed_time = time.time()-start_time
-                myprint("Finished CC 1 %d of %d\nTime elapsed = %0.2f"%(count+1,len(self.channels),elapsed_time));
+                myprint("Finished CC %d of %d\nTime elapsed = %0.2f"%(count+1,numIterations,elapsed_time));
                 start_time = time.time()
 
                 CC[np.isnan(CC)] = 0
@@ -178,7 +182,6 @@ class Hypnodensity(object):
                 sc = np.max(CC,axis=0)
                 sc = np.multiply(np.sign(sc),np.log((np.abs(sc)+1)/
                                  (self.CCsize[c]*self.fs)))/(sc+1e-10)
-
 
                 CC = np.multiply(CC,sc)
                 CC.astype(np.float32)
@@ -190,29 +193,27 @@ class Hypnodensity(object):
 
                 if count==2:
                     eog1 = F
-
                 if count==3:
-
                     PS = eog1*C
                     CC = np.real(np.fft.fftshift(np.fft.ifft(PS,axis=0),axes=0))
                     CC = CC[int(CC.shape[0]/4):int(CC.shape[0]*3/4),:]
                     sc = np.max(CC,axis=0)
                     sc = np.multiply(np.sign(sc),np.log((np.abs(sc)+1)/
                                      (self.CCsize[c]*self.fs)))/(sc+1e-10)
-
                     CC = np.multiply(CC,sc)
                     CC.astype(np.float32)
+
 
                     enc = np.concatenate([enc,CC])
 
                 # pdb.set_trace()
                 elapsed_time = time.time()-start_time
-                myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f"%(count+1,len(self.channels),elapsed_time))
+                myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f"%(count+1,numConcatenates,elapsed_time))
 
         self.encodedD = enc
 
         if isinstance(self.lightsOff,int):
-            self.encodedD = self.encodedD[:,4*30*self.lightsOff:4*30*self.lightsOn]
+            self.encodedD = self.encodedD[:,4*30*self.lightsOff:4*30*self.lightsOn]  # This does not make sense ...
 
 
     def buffering(self,x, n, p=0):
@@ -352,6 +353,14 @@ class Hypnodensity(object):
         return np.divide(e_x,div)
 
 
+    def score_data(self):
+        self.hypnodensity = list()
+        for l in self.config.models_used:
+            hyp = Hypnodensity.run_data(self.encodedD,l,self.config.hypnodensity_model_root_path)
+            pdb.set_trace()
+            hyp = self.softmax(hyp)
+            self.hypnodensity.append(hyp)
+
     def run_data(dat,model, root_model_path):
 
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir = root_model_path)
@@ -360,24 +369,25 @@ class Hypnodensity(object):
         hyp = Hypnodensity.run(dat,ac_config)
         return hyp
 
-    def score_data(self):
-        self.hypnodensity = list()
-        for l in self.config.models_used:
-            hyp = Hypnodensity.run_data(self.encodedD,l,self.config.hypnodensity_model_root_path)
-            hyp = self.softmax(hyp)
-            self.hypnodensity.append(hyp)
-
-
-
     def segment(dat,ac_config):
-
+        # Get integer value for segment size using //
         n_seg = dat.shape[1]//ac_config.segsize
-        dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
+
+        #For debugging
+        pdb.set_trace()
+
+        # Incorrect I think ... commented out on 10/30/2018  @hyatt
+        # dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
+        dat = np.expand_dims(dat[:,:n_seg*ac_config.segsize],0)
 
         num_batches = np.int(np.ceil(np.divide(dat.shape[2],(ac_config.eval_nseg_atonce*ac_config.segsize),dtype='float')))
 
         Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize)%dat.shape[2])
+              # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
+
+        # fill remaining (nExtra) values with the mean value of each column
         meanF = np.mean(np.mean(dat,2),0) * np.ones([1,Nextra,dat.shape[1]])
+
 
         dat = np.transpose(dat, [0, 2, 1])
         dat = np.concatenate([dat,meanF],1)
