@@ -15,7 +15,7 @@ class AppConfig(object):
                             'ac_rh_ls_lstm_11', 'ac_rh_ls_lstm_12',
                             'ac_rh_ls_lstm_13', 'ac_rh_ls_lstm_14',
                             'ac_rh_ls_lstm_15', 'ac_rh_ls_lstm_16']
-        #self.models_used = ['ac_rh_ls_lstm_01']
+        self.models_used = ['ac_rh_ls_lstm_01']
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
@@ -24,6 +24,8 @@ class AppConfig(object):
         self.fsL = np.array(49,dtype=float)
 
         self.channels = ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
+
+        # Size of cross correlation in seconds - so in samples this will be sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
         self.CCsize = {'C3':   2, 'C4':   2,  'O1':   2, 'O2':   2,
                        'EOG-L':4, 'EOG-R':4,
                        'EMG':  0.4,
