@@ -45,9 +45,16 @@ def main(edfFilename,
 
     channel_categories = {
         'central': 'C3',
+        'central3': 'C3',
+        'central4': 'C4',
+        'centrals': ('C3','C4'),
         'occipital': 'O1',
+        'occipital1': 'O1',
+        'occipital2': 'O2',
+        'occipitals': ('O1','O2'),
         'eog_l': 'EOG-L',
         'eog_r': 'EOG-R',
+        'eogs': ('EOG-L','EOG-R'),
         'chin_emg': 'EMG'
     }
 
@@ -56,11 +63,16 @@ def main(edfFilename,
     for channel_category, channel_index in configInput["channel_indices"].items():
         channel_label = channel_categories.get(channel_category, None)
         if channel_label is not None:
-            appConfig.channels_used[channel_label] = channel_index
+            if type(channel_index) is list or type(channel_index) is tuple:   # ==type(tuple):
+                for i in range(len(channel_index)):
+                    appConfig.channels_used[channel_label[i]] = channel_index[i]
+            else:
+                appConfig.channels_used[channel_label] = channel_index
 
-    appConfig.lightsOff = [] # configInput.get('lightsOff', 33)
-    appConfig.lightsOn = [] # configInput.get('lightsOn', 1152)
-    # appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
+
+    appConfig.lightsOff = configInput.get('lightsOff',[]) #33)
+    appConfig.lightsOn = configInput.get('lightsOn',[]) #1152)
+    #appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
     hyp = {}
     hyp['showplot'] = False
     hyp['saveplot'] = False
@@ -114,6 +126,7 @@ def renderHypnodensity(hypnodensity, showPlot=False, savePlot=False, fileName='t
         print("Showing hypnodensity")
         plt.show()
 
+    pdb.set_trace()
 
 class NarcoApp(object):
 
