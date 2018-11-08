@@ -8,3 +8,5 @@ narco_detector.zip
 Demo.pkl
 
 *.hypno_pkl
+
+\.idea/
