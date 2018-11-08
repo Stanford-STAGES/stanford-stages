@@ -131,7 +131,10 @@ class Hypnodensity(object):
 
         count = -1
         enc = []
+        # Central, Occipital, EOG and chin
 
+        numIterations = 4;  # there are actually 5 for CC, but this is just for displaying progress
+        numConcatenates = 5;
         for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
             start_time = time.time()
 
@@ -377,14 +380,25 @@ class Hypnodensity(object):
 
     def segment(dat, ac_config):
 
-        n_seg = dat.shape[1] // ac_config.segsize
-        dat = np.expand_dims(dat[:n_seg * ac_config.segsize, :], 0)
 
-        num_batches = np.int(
-            np.ceil(np.divide(dat.shape[2], (ac_config.eval_nseg_atonce * ac_config.segsize), dtype='float')))
+        # Get integer value for segment size using //
+        n_seg = dat.shape[1]//ac_config.segsize
 
-        Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize) % dat.shape[2])
-        meanF = np.mean(np.mean(dat, 2), 0) * np.ones([1, Nextra, dat.shape[1]])
+        #For debugging
+        pdb.set_trace()
+
+        # Incorrect I think ... commented out on 10/30/2018  @hyatt
+        # dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
+        dat = np.expand_dims(dat[:,:n_seg*ac_config.segsize],0)
+
+        num_batches = np.int(np.ceil(np.divide(dat.shape[2],(ac_config.eval_nseg_atonce*ac_config.segsize),dtype='float')))
+
+        Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize)%dat.shape[2])
+              # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
+
+        # fill remaining (nExtra) values with the mean value of each column
+        meanF = np.mean(np.mean(dat,2),0) * np.ones([1,Nextra,dat.shape[1]])
+
 
         dat = np.transpose(dat, [0, 2, 1])
         dat = np.concatenate([dat, meanF], 1)
