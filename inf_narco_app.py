@@ -9,6 +9,7 @@ import json  # for command line interface input and output.
 import os
 import sys
 import warnings
+import pdb;
 from datetime import datetime
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
@@ -58,8 +59,7 @@ def main(edfFilename,
         'chin_emg': 'EMG'
     }
 
-    # configInput.channel_labels['central','occipital','eog_l','eog_r','chin_emg']
-    # configInput.channel_indices
+
     for channel_category, channel_index in configInput["channel_indices"].items():
         channel_label = channel_categories.get(channel_category, None)
         if channel_label is not None:
@@ -70,9 +70,10 @@ def main(edfFilename,
                 appConfig.channels_used[channel_label] = channel_index
 
 
-    appConfig.lightsOff = configInput.get('lightsOff',[]) #33)
-    appConfig.lightsOn = configInput.get('lightsOn',[]) #1152)
-    #appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
+    appConfig.lightsOff = configInput.get('lightsOff',[])
+    appConfig.lightsOn = configInput.get('lightsOn',[])
+    appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
+
     hyp = {}
     hyp['showplot'] = False
     hyp['saveplot'] = False
@@ -240,8 +241,8 @@ if __name__ == '__main__':
 
             edfFile = sys.argv[1]
             # print(sys.argv[2]);
-            jsonObj = json.loads('{"channel_indices":{"central":3,"occipital":0,"eog_l":0,"eog_r":0,"chin_emg":0}, "hypnodensity":{"showplot":true}}')
-            # jsonObj = json.loads(sys.argv[2])
+            # jsonObj = json.loads('{"channel_indices":{"central":3,"occipital":0,"eog_l":0,"eog_r":0,"chin_emg":0}, "hypnodensity":{"showplot":true}}')
+            jsonObj = json.loads(sys.argv[2])
             try:
                 main(edfFile, jsonObj)
             except OSError as oserr:

@@ -13,6 +13,8 @@ import time  # for tracking time spent in encoding
 from decimal import *
 from pathlib import Path
 
+import pdb
+
 import numpy as np
 import pyedflib
 import pywt  # wavelet entropy
@@ -61,8 +63,9 @@ class Hypnodensity(object):
         else:
             myprint('Load EDF')
             self.loadEDF()
-            # myprint('Load noise level')
-            # self.psg_noise_level()
+            myprint('Load noise level')
+            # pdb.set_trace();
+            self.psg_noise_level()
             print('Encode')
             self.encoding()
 
@@ -135,6 +138,7 @@ class Hypnodensity(object):
 
         numIterations = 4;  # there are actually 5 for CC, but this is just for displaying progress
         numConcatenates = 5;
+        pdb.set_trace();
         for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
             start_time = time.time()
 
@@ -163,13 +167,13 @@ class Hypnodensity(object):
                 C = np.conj(np.fft.fft(B2, axis=0))
 
                 elapsed_time = time.time() - start_time
-                myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f" % (count + 1, len(self.channels), elapsed_time));
+                myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
                 start_time = time.time()
 
                 CC = np.real(np.fft.fftshift(np.fft.ifft(np.multiply(F, C), axis=0), axes=0))
 
                 elapsed_time = time.time() - start_time
-                myprint("Finished CC 1 %d of %d\nTime elapsed = %0.2f" % (count + 1, len(self.channels), elapsed_time));
+                myprint("Finished CC %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
                 start_time = time.time()
 
                 CC[np.isnan(CC)] = 0
@@ -204,15 +208,15 @@ class Hypnodensity(object):
 
                     enc = np.concatenate([enc, CC])
 
-                # pdb.set_trace()
+                pdb.set_trace()
                 elapsed_time = time.time() - start_time
                 myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f" % (
-                count + 1, len(self.channels), elapsed_time))
+                count + 1, numConcatenates, elapsed_time))
 
         self.encodedD = enc
 
         if isinstance(self.lightsOff, int):
-            self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
+            self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn] # This needs double checking @hyatt 11/12/2018
 
     def buffering(self, x, n, p=0):
 
@@ -246,39 +250,40 @@ class Hypnodensity(object):
                 print("OSError:", "Loading", self.edf_pathname)
                 raise (osErr)
 
-        for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            myprint('Loading', c)
-            if isinstance(self.channels_used[c], int):
+        for ch in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
+            myprint('Loading', ch)
+            if isinstance(self.channels_used[ch], int):
 
-                self.loaded_channels[c] = self.edf.readSignal(self.channels_used[c])
-                if self.edf.getPhysicalDimension(self.channels_used[c]).lower() == 'mv':
+                self.loaded_channels[ch] = self.edf.readSignal(self.channels_used[ch])
+                if self.edf.getPhysicalDimension(self.channels_used[ch]).lower() == 'mv':
                     myprint('mv')
-                    self.loaded_channels[c] *= 1e3
-                elif self.edf.getPhysicalDimension(self.channels_used[c]).lower() == 'v':
+                    self.loaded_channels[ch] *= 1e3
+                elif self.edf.getPhysicalDimension(self.channels_used[ch]).lower() == 'v':
                     myprint('v')
-                    self.loaded_channels[c] *= 1e6
+                    self.loaded_channels[ch] *= 1e6
 
                 # myprint('Resampling skipped ...')
 
-                fs = self.edf.samplefrequency(self.channels_used[c])
+                fs = self.edf.samplefrequency(self.channels_used[ch])
                 fs = Decimal(fs).quantize(Decimal('.0001'), rounding=ROUND_DOWN)
                 print('fs', fs)
 
-                self.resampling(c, fs)
+                self.resampling(ch, fs)
                 print('Resampling done')
 
                 # Trimming excess ...
-                self.trim(c)
-
-                self.filtering(c, 100)
+                self.trim(ch)
+                pdb.set_trace();
+                self.filtering(ch, 100)
+                pdb.set_trace();
                 print('filtering done')
 
             else:
-                print('channel[', c, '] was empty (skipped)', sep='');
+                print('channel[', ch, '] was empty (skipped)', sep='');
 
-    def trim(self, c):
-        rem = len(self.loaded_channels[c]) % int(self.fs * 30)
-        self.loaded_channels[c] = self.loaded_channels[c][:-rem]
+    def trim(self, ch):
+        rem = len(self.loaded_channels[ch]) % int(self.fs * 30)
+        self.loaded_channels[ch] = self.loaded_channels[ch][:-rem]
 
     def loadHeader(self):
         if not self.edf:
@@ -288,18 +293,18 @@ class Hypnodensity(object):
         signal_labels = self.edf.getSignalLabels()
         return signal_labels
 
-    def filtering(self, c, fs):
+    def filtering(self, ch, fs):
 
         Fh = signal.butter(5, self.fsH / (fs / 2), btype='highpass', output='ba')
-        self.loaded_channels[c] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[c])
+        self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
         # self.loaded_channels[c] = signal.sosfiltfilt(Fh, self.loaded_channels[c], axis=-1)
 
         if fs > (2 * self.fsL):
             Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
-            self.loaded_channels[c] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[c])
+            self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch])
             # self.loaded_channels[c] = signal.sosfiltfilt(Fl, self.loaded_channels[c], axis=-1)
 
-    def resampling(self, c, fs):
+    def resampling(self, ch, fs):
         # ratio = np.float(self.fs)/np.round(np.float(fs));
         myprint("original samplerate = ", fs);
         myprint("resampling to ", self.fs)
@@ -308,7 +313,9 @@ class Hypnodensity(object):
                   0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0, -0.0186368912579407,
                   -0.0208207236911009, -0.0175636017706537]  # taken from matlab
         s = signal.dlti(numerator, [1], dt=1./self.fs)
-        self.loaded_channels[c] = signal.decimate(self.loaded_channels[c], int(int(fs)/self.fs), ftype=s, zero_phase=False)
+
+
+        self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], int(int(fs)/self.fs), ftype=s, zero_phase=False)
         # self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
         #                                                self.fs, fs, axis=0, window=('kaiser', 5.0))
         # [N,D] = rat(desired_samplerate/src_samplerate);
@@ -336,11 +343,11 @@ class Hypnodensity(object):
 
         noise = np.ones(4) * np.inf
         count = -1
-        for c in self.channels[:4]:
+        for ch in self.channels[:4]:
             count += 1
 
-            if self.channels_used[c]:
-                hjorth = self.extract_hjorth(self.loaded_channels[c])
+            if self.channels_used[ch]:
+                hjorth = self.extract_hjorth(self.loaded_channels[ch])
 
                 cov = np.array(noiseM.covM[count])
 
@@ -385,7 +392,7 @@ class Hypnodensity(object):
         n_seg = dat.shape[1]//ac_config.segsize
 
         #For debugging
-        pdb.set_trace()
+        # pdb.set_trace()
 
         # Incorrect I think ... commented out on 10/30/2018  @hyatt
         # dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
