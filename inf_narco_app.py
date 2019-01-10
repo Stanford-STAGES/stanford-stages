@@ -18,7 +18,7 @@ warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignor
 import scipy.io as sio
 
 import tensorflow as tf
-# import gpflow as gpf
+import gpflow as gpf
 import random
 
 # For hypnodensity plotting ...
@@ -69,18 +69,29 @@ def main(edfFilename,
             else:
                 appConfig.channels_used[channel_label] = channel_index
 
-
     appConfig.lightsOff = configInput.get('lightsOff',[])
     appConfig.lightsOn = configInput.get('lightsOn',[])
     appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
 
-    hyp = {}
-    hyp['showplot'] = False
-    hyp['saveplot'] = False
-    hyp['showtext'] = False
-    hyp['savetext'] = False
-    hyp['savename'] = edfFilename
-    hyp.update(configInput.get('hypnodensity', {}))
+    hyp = {'show':{},'save':{},'filename':{}}
+    hyp['show']['plot'] = False
+    hyp['show']['hypnogram'] = False
+    hyp['show']['hypnodesnity'] = False
+    hyp['show']['narcolepsy'] = False
+
+    hyp['save']['plot'] = False
+    hyp['save']['hypnogram'] = True
+    hyp['save']['hypnodesnity'] = True
+    hyp['save']['narcolepsy'] = False
+
+    hyp['filename']['plot'] = changeFileExt(edfFilename,'.png');
+    hyp['filename']['hypnodensity'] = changeFileExt(edfFilename,'.hypnodensity');
+    hyp['filename']['hypnogram'] = changeFileExt(edfFilename,'.hypnogram');
+    hyp['filename']['prediction'] = changeFileExt(edfFilename,'.narcolepsy');
+
+    hyp['save'].update(configInput.get('save', {}))
+    hyp['show'].update(configInput.get('show', {}))
+
     hypnoConfig = hyp
 
     narcoApp = NarcoApp(appConfig)
@@ -88,15 +99,26 @@ def main(edfFilename,
     # narcoApp.eval_all()
     narcoApp.eval_hypnodensity()
 
-    print('AppConfig.showPlot is ', hypnoConfig["showplot"])
-    print('AppConfig.saveplot is ', hypnoConfig["saveplot"])
+    hypnogram = narcoApp.get_hypnogram()
 
-    renderHypnodensity(narcoApp.get_hypnodensity(), showPlot=hypnoConfig['showplot'],
-                       savePlot=hypnoConfig['saveplot'], fileName=hypnoConfig['savename'])
-    prediction = narcoApp.get_narco_prediction()
+    #print('AppConfig.showPlot is ', hypnoConfig["showplot"])
+    #print('AppConfig.saveplot is ', hypnoConfig["saveplot"])
 
-    print(prediction)
+    renderHypnodensity(narcoApp.get_hypnodensity(), showPlot=hypnoConfig['show']['plot'],
+                       savePlot=hypnoConfig['save']['plot'], fileName=hypnoConfig['filename']['plot'])
 
+    if hyp['show']['narcolepsy']:
+        prediction = narcoApp.get_narco_prediction()
+        print(prediction)
+
+    if hypnoConfig['save']['hypnogram']:
+        narcoApp.save_hypnogram(fileName=hypnoConfig['filename']['hypnogram'])
+    if hypnoConfig['save']['hypnodensity']:
+        narcoApp.save_hypnodensity(fileName=hypnoConfig['filename']['hypnodensity'])
+
+def changeFileExt(fullName, newExt):
+    baseName, _ = os.path.splitext(fullName)
+    return baseName+newExt
 
 def renderHypnodensity(hypnodensity, showPlot=False, savePlot=False, fileName='tmp.png'):
     fig, ax = plt.subplots(figsize=[11, 5])
@@ -124,10 +146,9 @@ def renderHypnodensity(hypnodensity, showPlot=False, savePlot=False, fileName='t
         # plt.savefig(fileName)
 
     if showPlot:
-        print("Showing hypnodensity")
+        print("Showing hypnodensity - close figure to continue.")
         plt.show()
 
-    pdb.set_trace()
 
 class NarcoApp(object):
 
@@ -148,6 +169,22 @@ class NarcoApp(object):
 
     def get_hypnodensity(self):
         return self.Hypnodensity.get_hypnodensity()
+
+    def get_hypnogram(self):
+        return self.Hypnodensity.get_hypnogram()
+
+    def save_hypnodensity(self,fileName=''):
+        if fileName == '':
+            fileName = changeFileExt(self.edf_path,'.hypnodensity')
+        hypno = self.get_hypnodensity()
+        np.savetxt(fileName, hypno, delimiter = ",")
+
+    def save_hypnogram(self,fileName=''):
+        if fileName == '':
+            fileName = changeFileExt(self.edf_path,'.hypnogram')
+
+        hypno = self.get_hypnogram()
+        np.savetxt(fileName, hypno, delimiter = ",")
 
     def get_narco_gpmodels(self):
 
