@@ -27,6 +27,13 @@ from inf_network import SCModel
 from inf_tools import myprint
 
 
+def softmax(x):
+    # e_x = np.exp(x - np.max(x))
+    # return e_x / e_x.sum()
+    e_x = np.exp(x)
+    div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
+    return np.divide(e_x, div)
+
 class Hypnodensity(object):
 
     def __init__(self, appConfig):
@@ -64,7 +71,7 @@ class Hypnodensity(object):
             myprint('Load EDF')
             self.loadEDF()
             myprint('Load noise level')
-            # pdb.set_trace();
+
             self.psg_noise_level()
             print('Encode')
             self.encoding()
@@ -75,7 +82,7 @@ class Hypnodensity(object):
                 myprint("pickling done")
 
         if (h.exists()):
-            myprint('Loading previously saved hynpodesnity')
+            myprint('Loading previously saved hypnodensity')
             with h.open('rb') as fp:
                 self.hypnodensity = pickle.load(fp)
         else:
@@ -86,14 +93,20 @@ class Hypnodensity(object):
                 pickle.dump(self.hypnodensity, fp)
                 myprint("Hypnodensity pickled")
 
+    # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
     def get_hypnodensity(self):
-        av = np.zeros(self.hypnodensity[0].shape)
+        av = np.zeros(self.hypnodensity[0].shape)  # for example, 2144, 5)
 
         for i in range(len(self.hypnodensity)):
             av += self.hypnodensity[i]
 
         av = np.divide(av, len(self.hypnodensity))
         return av
+
+    # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+    def get_hypnogram(self):
+        hypno = self.get_hypnodensity()
+        return np.argmax(hypno,axis=1)
 
     def get_features(self, modelName, idx):
         selected_features = self.config.narco_prediction_selected_features
@@ -138,7 +151,7 @@ class Hypnodensity(object):
 
         numIterations = 4;  # there are actually 5 for CC, but this is just for displaying progress
         numConcatenates = 5;
-        pdb.set_trace();
+
         for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
             start_time = time.time()
 
@@ -208,7 +221,7 @@ class Hypnodensity(object):
 
                     enc = np.concatenate([enc, CC])
 
-                pdb.set_trace()
+
                 elapsed_time = time.time() - start_time
                 myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f" % (
                 count + 1, numConcatenates, elapsed_time))
@@ -273,9 +286,9 @@ class Hypnodensity(object):
 
                 # Trimming excess ...
                 self.trim(ch)
-                pdb.set_trace();
+
                 self.filtering(ch, 100)
-                pdb.set_trace();
+
                 print('filtering done')
 
             else:
@@ -362,13 +375,6 @@ class Hypnodensity(object):
         self.channels_used[self.channels[notUsedC]] = []
         self.channels_used[self.channels[notUsedO]] = []
 
-    def softmax(self, x):
-
-        # e_x = np.exp(x - np.max(x))
-        # return e_x / e_x.sum()
-        e_x = np.exp(x)
-        div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
-        return np.divide(e_x, div)
 
     def run_data(dat, model, root_model_path):
 
@@ -382,7 +388,7 @@ class Hypnodensity(object):
         self.hypnodensity = list()
         for l in self.config.models_used:
             hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
-            hyp = self.softmax(hyp)
+            # hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
 
     def segment(dat, ac_config):
@@ -422,8 +428,6 @@ class Hypnodensity(object):
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
             with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as session:
                 ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
-                # For debugging
-                # pdb.set_trace()
 
                 s.restore(session, ckpt.model_checkpoint_path)
 
@@ -431,9 +435,7 @@ class Hypnodensity(object):
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
-                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(
-                                                                                              i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,
-                        :]
+                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,:]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
@@ -628,7 +630,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
         for i in range(5):
             S[:, i] = np.convolve(data[:, i], np.ones(9), mode='same')
 
-        S = self.softmax(S)
+        S = softmax(S)
 
         cumR = np.zeros(S.shape)
         Th = 0.2;
@@ -686,11 +688,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
         features = np.concatenate([transitions, nPeaks], axis=0)
         return features
 
-    def softmax(self, x):
-        """Compute softmax values for each sets of scores in x."""
-        e_x = np.exp(x)
-        div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
-        return np.divide(e_x, div)
 
     def find_peaks(self, x):
         peaks = []
