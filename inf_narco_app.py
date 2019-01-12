@@ -9,7 +9,6 @@ import json  # for command line interface input and output.
 import os
 import sys
 import warnings
-import pdb;
 from datetime import datetime
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
@@ -18,7 +17,7 @@ warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignor
 import scipy.io as sio
 
 import tensorflow as tf
-import gpflow as gpf
+# import gpflow as gpf
 import random
 
 # For hypnodensity plotting ...
@@ -48,32 +47,31 @@ def main(edfFilename,
         'central': 'C3',
         'central3': 'C3',
         'central4': 'C4',
-        'centrals': ('C3','C4'),
+        'centrals': ('C3', 'C4'),
         'occipital': 'O1',
         'occipital1': 'O1',
         'occipital2': 'O2',
-        'occipitals': ('O1','O2'),
+        'occipitals': ('O1', 'O2'),
         'eog_l': 'EOG-L',
         'eog_r': 'EOG-R',
-        'eogs': ('EOG-L','EOG-R'),
+        'eogs': ('EOG-L', 'EOG-R'),
         'chin_emg': 'EMG'
     }
-
 
     for channel_category, channel_index in configInput["channel_indices"].items():
         channel_label = channel_categories.get(channel_category, None)
         if channel_label is not None:
-            if type(channel_index) is list or type(channel_index) is tuple:   # ==type(tuple):
+            if type(channel_index) is list or type(channel_index) is tuple:  # ==type(tuple):
                 for i in range(len(channel_index)):
                     appConfig.channels_used[channel_label[i]] = channel_index[i]
             else:
                 appConfig.channels_used[channel_label] = channel_index
 
-    appConfig.lightsOff = configInput.get('lightsOff',[])
-    appConfig.lightsOn = configInput.get('lightsOn',[])
-    appConfig.showPlot = configInput.get('hypnodensity.showplot',False)
+    appConfig.lightsOff = configInput.get('lightsOff', [])
+    appConfig.lightsOn = configInput.get('lightsOn', [])
+    appConfig.showPlot = configInput.get('hypnodensity.showplot', False)
 
-    hyp = {'show':{},'save':{},'filename':{}}
+    hyp = {'show': {}, 'save': {}, 'filename': {}}
     hyp['show']['plot'] = False
     hyp['show']['hypnogram'] = False
     hyp['show']['hypnodesnity'] = False
@@ -84,10 +82,10 @@ def main(edfFilename,
     hyp['save']['hypnodesnity'] = True
     hyp['save']['narcolepsy'] = False
 
-    hyp['filename']['plot'] = changeFileExt(edfFilename,'.png');
-    hyp['filename']['hypnodensity'] = changeFileExt(edfFilename,'.hypnodensity');
-    hyp['filename']['hypnogram'] = changeFileExt(edfFilename,'.hypnogram');
-    hyp['filename']['prediction'] = changeFileExt(edfFilename,'.narcolepsy');
+    hyp['filename']['plot'] = changeFileExt(edfFilename, '.png');
+    hyp['filename']['hypnodensity'] = changeFileExt(edfFilename, '.hypnodensity');
+    hyp['filename']['hypnogram'] = changeFileExt(edfFilename, '.hypnogram');
+    hyp['filename']['prediction'] = changeFileExt(edfFilename, '.narcolepsy');
 
     hyp['save'].update(configInput.get('save', {}))
     hyp['show'].update(configInput.get('show', {}))
@@ -101,8 +99,8 @@ def main(edfFilename,
 
     hypnogram = narcoApp.get_hypnogram()
 
-    #print('AppConfig.showPlot is ', hypnoConfig["showplot"])
-    #print('AppConfig.saveplot is ', hypnoConfig["saveplot"])
+    # print('AppConfig.showPlot is ', hypnoConfig["showplot"])
+    # print('AppConfig.saveplot is ', hypnoConfig["saveplot"])
 
     renderHypnodensity(narcoApp.get_hypnodensity(), showPlot=hypnoConfig['show']['plot'],
                        savePlot=hypnoConfig['save']['plot'], fileName=hypnoConfig['filename']['plot'])
@@ -116,9 +114,11 @@ def main(edfFilename,
     if hypnoConfig['save']['hypnodensity']:
         narcoApp.save_hypnodensity(fileName=hypnoConfig['filename']['hypnodensity'])
 
+
 def changeFileExt(fullName, newExt):
     baseName, _ = os.path.splitext(fullName)
-    return baseName+newExt
+    return baseName + newExt
+
 
 def renderHypnodensity(hypnodensity, showPlot=False, savePlot=False, fileName='tmp.png'):
     fig, ax = plt.subplots(figsize=[11, 5])
@@ -173,18 +173,18 @@ class NarcoApp(object):
     def get_hypnogram(self):
         return self.Hypnodensity.get_hypnogram()
 
-    def save_hypnodensity(self,fileName=''):
+    def save_hypnodensity(self, fileName=''):
         if fileName == '':
-            fileName = changeFileExt(self.edf_path,'.hypnodensity')
+            fileName = changeFileExt(self.edf_path, '.hypnodensity')
         hypno = self.get_hypnodensity()
-        np.savetxt(fileName, hypno, delimiter = ",")
+        np.savetxt(fileName, hypno, delimiter=",")
 
-    def save_hypnogram(self,fileName=''):
+    def save_hypnogram(self, fileName=''):
         if fileName == '':
-            fileName = changeFileExt(self.edf_path,'.hypnogram')
+            fileName = changeFileExt(self.edf_path, '.hypnogram')
 
         hypno = self.get_hypnogram()
-        np.savetxt(fileName, hypno, delimiter = ",")
+        np.savetxt(fileName, hypno, delimiter=",")
 
     def get_narco_gpmodels(self):
 
@@ -278,8 +278,8 @@ if __name__ == '__main__':
 
             edfFile = sys.argv[1]
             # print(sys.argv[2]);
-            # jsonObj = json.loads('{"channel_indices":{"central":3,"occipital":0,"eog_l":0,"eog_r":0,"chin_emg":0}, "hypnodensity":{"showplot":true}}')
-            jsonObj = json.loads(sys.argv[2])
+            jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
+            # jsonObj = json.loads(sys.argv[2])
             try:
                 main(edfFile, jsonObj)
             except OSError as oserr:
