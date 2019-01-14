@@ -1,0 +1,13 @@
+name: stanford-stages
+channels:
+  - defaults
+dependencies:
+  - h5py=2.8.0=py36h989c5e5_3
+  - hdf5=1.10.2=hba1933b_1
+  - numpy=1.15.3=py36h1d66e8a_0
+  - python=3.6.7=h0371630_0
+  - scipy=1.1.0=py36hfa4b5c9_1
+  - pip:
+    - pyedflib==0.1.12
+    - scikit-learn==0.19.1
+    - xmltodict==0.11.0
