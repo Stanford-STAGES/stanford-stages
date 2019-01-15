@@ -519,7 +519,7 @@ class Hypnodensity(object):
         self.hypnodensity = list()
         for l in self.config.models_used:
             hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
-            # hyp = softmax(hyp)
+            hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
 
     def segment(dat, ac_config):
