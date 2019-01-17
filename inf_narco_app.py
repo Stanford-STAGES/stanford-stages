@@ -278,8 +278,8 @@ if __name__ == '__main__':
 
             edfFile = sys.argv[1]
             # print(sys.argv[2]);
-            jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
-            # jsonObj = json.loads(sys.argv[2])
+            # jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
+            jsonObj = json.loads(sys.argv[2])
             try:
                 main(edfFile, jsonObj)
             except OSError as oserr:

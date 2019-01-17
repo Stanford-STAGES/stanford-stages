@@ -229,6 +229,8 @@ class Hypnodensity(object):
         enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25, self.fs))
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
+
+        # this fails for input with only 1 channel given for c3/c4 or o1/o2
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
@@ -340,28 +342,28 @@ class Hypnodensity(object):
             self.encodedD = self.encodedD[:,
                             4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking @hyatt 11/12/2018
 
-    def buffering(self, x, n, p=0):
-
-        if p >= n:
-            raise ValueError('p ({}) must be less than n ({}).'.format(p, n))
-
-        # Calculate number of columns of buffer array
-        cols = int(np.ceil(len(x) / (n - p)))
-        # Check for opt parameters
-
-        # Create empty buffer array
-        b = np.zeros((n, cols))
-
-        # Fill buffer by column handling for initial condition and overlap
-        j = 0
-        slide = n - p
-        start = 0
-        for i in range(cols - int(np.ceil(n / (n - p)))):
-            # Set first column to n values from x, move to next iteration
-            b[:, i] = x[start:start + n]
-            start += slide
-
-        return b
+        # def buffering(self, x, n, p=0):
+        #
+        #     if p >= n:
+        #         raise ValueError('p ({}) must be less than n ({}).'.format(p, n))
+        #
+        #         # Calculate number of columns of buffer array
+        #         cols = int(np.ceil(len(x) / (n - p)))
+        #         # Check for opt parameters
+        #
+        #         # Create empty buffer array
+        #         b = np.zeros((n, cols))
+        #
+        #         # Fill buffer by column handling for initial condition and overlap
+        #         j = 0
+        #         slide = n - p
+        #         start = 0
+        #         for i in range(cols - int(np.ceil(n / (n - p)))):
+        #             # Set first column to n values from x, move to next iteration
+        #             b[:, i] = x[start:start + n]
+        #             start += slide
+        #
+        #             return b
 
     def loadEDF(self):
         if not self.edf:
