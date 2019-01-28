@@ -34,7 +34,6 @@ def softmax(x):
     div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
     return np.divide(e_x, div)
 
-
 class Hypnodensity(object):
 
     def __init__(self, appConfig):
@@ -148,9 +147,7 @@ class Hypnodensity(object):
 
         hjorth = np.array([activity, complexity, mobility])
         hjorth = np.log(hjorth + np.finfo(float).eps)
-
         return hjorth
-
 
     def mob(self, B):
         diff = np.diff(B, axis=0)
@@ -196,29 +193,23 @@ class Hypnodensity(object):
         enc = []
         # Central, Occipital, EOG and chin
 
-        numIterations = 4  # there are actually 5 for CC, but this is just for displaying progress
-        numConcatenates = 5
-        shortest_dur = np.inf
-
         for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            # start_time = time.time()
-
             if isinstance(self.channels_used[c], int):
-
+                # append autocorrelations
                 enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
 
+        # Append eog cross correlation
         enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25, self.fs))
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
-        # currently this fails for input with only 1 channel given for c3/c4 or o1/o2
+        # fails for input with only 1 channel given for c3/c4 or o1/o2
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
         if isinstance(self.lightsOff, int):
             self.encodedD = self.encodedD[:,
                             4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking @hyatt 11/12/2018
-
 
     def loadEDF(self):
         if not self.edf:
