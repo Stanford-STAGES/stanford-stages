@@ -10,7 +10,6 @@ Created on Wed Jul 12 23:58:10 2017
 import itertools  # for extracting feature combinations
 import os  # for opening os files for pickle.
 import pickle
-import time  # for tracking time spent in encoding
 from pathlib import Path
 
 import skimage
@@ -28,8 +27,6 @@ from inf_tools import myprint
 
 
 def softmax(x):
-    # e_x = np.exp(x - np.max(x))
-    # return e_x / e_x.sum()
     e_x = np.exp(x)
     div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
     return np.divide(e_x, div)
@@ -129,8 +126,6 @@ class Hypnodensity(object):
 
         # Creates 2D array of overlapping segments
         D = skimage.util.view_as_windows(x, dim, dim).T
-        # D = buffer(x, dim, dim-slide, 'nodelay')
-        # D = D[:, :-1]
 
         # Extract Hjorth params for each segment
         dD = np.diff(D, 1, axis=0)
@@ -191,10 +186,10 @@ class Hypnodensity(object):
 
         count = -1
         enc = []
-        # Central, Occipital, EOG and chin
 
         for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            if isinstance(self.channels_used[c], int):
+            pdb.set_trace()
+            if isinstance(self.channels_used[c], int):  # Central, Occipital, EOG-L, EOG-R, chin
                 # append autocorrelations
                 enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
 
@@ -203,13 +198,13 @@ class Hypnodensity(object):
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
-        # fails for input with only 1 channel given for c3/c4 or o1/o2
+        # Central, Occipital, EOG-L, EOG-R, EOG-L/R, chin
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
         if isinstance(self.lightsOff, int):
             self.encodedD = self.encodedD[:,
-                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking @hyatt 11/12/2018
+                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking as magic numbers are problematic here. @hyatt 11/12/2018
 
     def loadEDF(self):
         if not self.edf:
@@ -232,8 +227,6 @@ class Hypnodensity(object):
                     myprint('v')
                     self.loaded_channels[ch] *= 1e6
 
-                # myprint('Resampling skipped ...')
-
                 fs = int(self.edf.samplefrequency(self.channels_used[ch]))
                 # fs = Decimal(fs).quantize(Decimal('.0001'), rounding=ROUND_DOWN)
                 print('fs', fs)
@@ -241,7 +234,7 @@ class Hypnodensity(object):
                 self.resampling(ch, fs)
                 print('Resampling done')
 
-                # Trimming excess ...
+                # Trim excess
                 self.trim(ch)
 
             else:
@@ -260,7 +253,6 @@ class Hypnodensity(object):
         return signal_labels
 
     def filtering(self):
-
         myprint('Filtering remaining signals')
         fs = self.fs
 
@@ -277,10 +269,9 @@ class Hypnodensity(object):
                         dtype=np.float32)
 
     def resampling(self, ch, fs):
-        # ratio = np.float(self.fs)/np.round(np.float(fs));
         myprint("original samplerate = ", fs);
         myprint("resampling to ", self.fs)
-        if fs==500 || fs==200:
+        if fs==500 or fs==200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                 0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
                 0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
@@ -328,8 +319,6 @@ class Hypnodensity(object):
     def run_data(dat, model, root_model_path):
 
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
-        # root_train_data_dir,
-        # root_test_data_dir))
         hyp = Hypnodensity.run(dat, ac_config)
         return hyp
 
