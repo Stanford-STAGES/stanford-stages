@@ -4,6 +4,7 @@ Created on Wed Jul 12 23:58:10 2017
 
 @author: jens
 @modifer: hyatt
+@modifier: neergaard
 # from: inf_eval --> to: inf_generate_hypnodensity
 """
 import itertools  # for extracting feature combinations
@@ -150,26 +151,6 @@ class Hypnodensity(object):
 
         return hjorth
 
-        # # Segment
-        # N = np.arange(0, len(x), 100 * 60 * 5)
-        # B = [np.expand_dims(x[N[i]:N[i + 1]], 1) for i in np.arange(len(N) - 1)]
-        # B = np.concatenate(B, axis=1)
-        # # Activity
-        # act = np.var(B, axis=0)
-        #
-        # # Mobility
-        #
-        # mobil = self.mob(B)
-        #
-        # # Complexity
-        # comp = np.divide(self.mob(np.diff(B, axis=0)), mobil)
-        #
-        # # transform
-        # lAct = np.mean(np.log(act))
-        # lMobil = np.mean(np.log(mobil))
-        # lComp = np.mean(np.log(comp))
-        #
-        # return np.array([lAct, lMobil, lComp])
 
     def mob(self, B):
         diff = np.diff(B, axis=0)
@@ -230,140 +211,14 @@ class Hypnodensity(object):
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
-        # this fails for input with only 1 channel given for c3/c4 or o1/o2
+        # currently this fails for input with only 1 channel given for c3/c4 or o1/o2
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
-
-                # # Length of the first dimension and overlap of segments
-                # dim = int(self.fs * self.CCsize[c])
-                # slide = int(self.fs * 0.25)
-                #
-                # # Create 2D array of overlapping segments
-                # zero_vec = np.zeros(n // 2)
-                # input2 = np.concatenate((zero_vec, self.loaded_channels[c], zero_vec))
-                # D1 = skimage.util.view_as_windows(self.loaded_channels[c], dim, slide).T
-                # D2 = skimage.util.view_as_windows(input2, n * 2, slide).T
-                # zero_mat = np.zeros((n // 2, D1.shape[1]))
-                # D1 = np.concatenate([zero_mat, D1, zero_mat])
-                #
-                # keep_dims = D1.shape[1]
-                # D2 = D2[:, :keep_dims]
-                # D1 = D1[:, :keep_dims]
-                #
-                # # Fast implementation of auto/cross-correlation
-                # C = fftshift(
-                #     np.real(ifft(fft(D1, dim * 2 - 1, axis=0) * np.conj(fft(D2, dim * 2 - 1, axis=0)), axis=0)),
-                #     axes=0).astype(dtype=np.float32)
-                #
-                # # Remove mirrored part
-                # C = C[dim // 2 - 1: - dim // 2]
-                #
-                # # Scale data with log modulus
-                # scale = np.log(np.max(np.abs(C) + 1, axis=0) / dim)
-                # C = C[..., :] / (np.amax(np.abs(C), axis=0) / scale)
-                #
-                # enc.append(C)
-                #
-                # count += 1
-                # n = int(self.fs * self.CCsize[c])
-                # p = int(self.fs * (self.CCsize[c] - 0.25))
-                # slide = int(self.fs * 0.25)
-                #
-                # # TODO: There is an error in this buffer somewhere // Alex // Update: fixed with Scikit-Image
-                # # B1 = buffer(self.loaded_channels[c], n, n-slide, opt='nodelay')
-                # # B1 = self.buffering(self.loaded_channels[c], n, p)
-                # print(D1.shape)
-                # zeroP = np.zeros([int(D1.shape[0] / 2), D1.shape[1]])
-                # D1 = np.concatenate([zeroP, D1, zeroP], axis=0)
-                #
-                # # n = int(self.fs * self.CCsize[c] * 2)
-                # # p = int(self.fs * (self.CCsize[c] * 2 - 0.25))
-                # zero_vec = np.zeros(n // 2)
-                # input2 = np.concatenate((zero_vec, self.loaded_channels[c], zero_vec))
-                # D2 = skimage.util.view_as_windows(input2, n * 2, slide).T
-                # # D2 = self.buffering(np.concatenate([np.zeros(int(n / 4)), self.loaded_channels[c], np.zeros(int(n / 4))]), n, p)
-                #
-                # B2 = B2[:, :B1.shape[1]]
-                #
-                # start_time = time.time()
-                #
-                # F = np.fft.fft(B1, axis=0)
-                # C = np.conj(np.fft.fft(B2, axis=0))
-                #
-                # elapsed_time = time.time() - start_time
-                # myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
-                # start_time = time.time()
-                #
-                # CC = np.real(np.fft.fftshift(np.fft.ifft(np.multiply(F, C), axis=0), axes=0))
-                #
-                # elapsed_time = time.time() - start_time
-                # myprint("Finished CC %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
-                # start_time = time.time()
-                #
-                # CC[np.isnan(CC)] = 0
-                # CC[np.isinf(CC)] = 0
-                #
-                # CC = CC[int(CC.shape[0] / 4):int(CC.shape[0] * 3 / 4), :]
-                # sc = np.max(CC, axis=0)
-                # sc = np.multiply(np.sign(sc), np.log((np.abs(sc) + 1) /
-                #                                      (self.CCsize[c] * self.fs))) / (sc + 1e-10)
-                #
-                # CC = np.multiply(CC, sc)
-                # CC.astype(np.float32)
-                #
-                # if len(enc) > 0:
-                #     enc = np.concatenate([enc, CC])
-                # else:
-                #     enc = CC
-                #
-                # if count == 2:
-                #     eog1 = F
-                #
-                # if count == 3:
-                #     PS = eog1 * C
-                #     CC = np.real(np.fft.fftshift(np.fft.ifft(PS, axis=0), axes=0))
-                #     CC = CC[int(CC.shape[0] / 4):int(CC.shape[0] * 3 / 4), :]
-                #     sc = np.max(CC, axis=0)
-                #     sc = np.multiply(np.sign(sc), np.log((np.abs(sc) + 1) /
-                #                                          (self.CCsize[c] * self.fs))) / (sc + 1e-10)
-                #
-                #     CC = np.multiply(CC, sc)
-                #     CC.astype(np.float32)
-                #
-                #     enc = np.concatenate([enc, CC])
-                #
-                # elapsed_time = time.time() - start_time
-                # myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f" % (
-                #     count + 1, numConcatenates, elapsed_time))
-
-        # self.encodedD = enc[:, ]
 
         if isinstance(self.lightsOff, int):
             self.encodedD = self.encodedD[:,
                             4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking @hyatt 11/12/2018
 
-        # def buffering(self, x, n, p=0):
-        #
-        #     if p >= n:
-        #         raise ValueError('p ({}) must be less than n ({}).'.format(p, n))
-        #
-        #         # Calculate number of columns of buffer array
-        #         cols = int(np.ceil(len(x) / (n - p)))
-        #         # Check for opt parameters
-        #
-        #         # Create empty buffer array
-        #         b = np.zeros((n, cols))
-        #
-        #         # Fill buffer by column handling for initial condition and overlap
-        #         j = 0
-        #         slide = n - p
-        #         start = 0
-        #         for i in range(cols - int(np.ceil(n / (n - p)))):
-        #             # Set first column to n values from x, move to next iteration
-        #             b[:, i] = x[start:start + n]
-        #             start += slide
-        #
-        #             return b
 
     def loadEDF(self):
         if not self.edf:
@@ -479,19 +334,6 @@ class Hypnodensity(object):
         self.channels_used[self.channels[notUsedC]] = []
         self.channels_used[self.channels[notUsedO]] = []
 
-        #
-        #         cov = np.array(noiseM.covM[idx])
-        #
-        #         covI = np.linalg.inv(cov)
-        #         meanV = np.array(noiseM.meanV[idx])
-        #         noise[idx] = np.sqrt(np.matmul(np.matmul(np.transpose(hjorth - meanV), covI), (hjorth - meanV)))
-        #
-        # notUsedC = np.argmax(noise[:2])
-        # notUsedO = np.argmax(noise[2:4]) + 2
-        #
-        # self.channels_used[self.channels[notUsedC]] = []
-        # self.channels_used[self.channels[notUsedO]] = []
-
     def run_data(dat, model, root_model_path):
 
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
@@ -512,11 +354,6 @@ class Hypnodensity(object):
         # Get integer value for segment size using //
         n_seg = dat.shape[1] // ac_config.segsize
 
-        # For debugging
-        # pdb.set_trace()
-
-        # Incorrect I think ... commented out on 10/30/2018  @hyatt
-        # dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
         dat = np.expand_dims(dat[:, :n_seg * ac_config.segsize], 0)
 
         num_batches = np.int(
@@ -540,7 +377,9 @@ class Hypnodensity(object):
         with tf.Graph().as_default() as g:
             m = SCModel(ac_config)
             s = tf.train.Saver(tf.global_variables())
+
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
+
             with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as session:
                 ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
 
@@ -550,9 +389,7 @@ class Hypnodensity(object):
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
-                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(
-                                                                                          i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,
-                        :]
+                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,:]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
