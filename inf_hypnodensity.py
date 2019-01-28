@@ -434,39 +434,22 @@ class Hypnodensity(object):
         # ratio = np.float(self.fs)/np.round(np.float(fs));
         myprint("original samplerate = ", fs);
         myprint("resampling to ", self.fs)
-        numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
-                      0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
-                      0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
-                      -0.0208207236911009, -0.0175636017706537],
-                     [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
-                      -0.050624178425469]]  # taken from matlab
-
-        if ch in ['C3', 'C4', 'O1', 'O2', 'EOG-L', 'EOG-R']:
-            s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
-        elif ch in ['EMG']:
-            s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
-
-        self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
-        # self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
-        #                                                self.fs, fs, axis=0, window=('kaiser', 5.0))
-        # [N,D] = rat(desired_samplerate/src_samplerate);
-        # if N!=D:
-        #    if len(self.loaded_channels[c])>0:
-        #        raw_data = resample(raw_data,N,D); #%resample to get the desired sample rate
-
-        # print('ratio')
-        # converter = 'sinc_best'
-        # self.loaded_channels[c] = samplerate.resample(self.loaded_channels[c], ratio, converter)
-
-        # self.loaded_channels[c] = samplerate.resample(self.loaded_channels[c], ratio, converter)
-        # resampler = samplerate.Resampler(converter, channels=1)
-        # print('resampler')
-
-        # self.loaded_channels[c] = resampler.process(self.loaded_channels[c],
-        #                                     ratio, end_of_input=True)
-        # print('resampler.process')
-        # self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
-        #                    self.fs, fs, axis=0, window=('kaiser', 5.0))
+        if fs==500 || fs==200:
+            numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
+                0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
+                0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
+                -0.0208207236911009, -0.0175636017706537],
+                [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
+                -0.050624178425469]]  # from matlab
+            if fs==500:
+                s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
+            elif fs==200:
+                s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
+        else:
+            self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
+                                        self.fs, fs, axis=0, window=('kaiser', 5.0))
 
     def psg_noise_level(self):
         noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
