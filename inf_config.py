@@ -31,8 +31,8 @@ class AppConfig(object):
                        'EMG':  0.4,
                        'A1':   [], 'A2':   [],
                        }
-        self.CCsize = dict(zip(self.channels,
-                        [2,2,2,2,4,4,0.4,[],[]]))
+        #self.CCsize = dict(zip(self.channels,
+        #                [2,2,2,2,4,4,0.4,[],[]]))
         self.channels_used =   dict.fromkeys(self.channels)
         self.loaded_channels = dict.fromkeys(self.channels)
 
