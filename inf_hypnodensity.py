@@ -305,12 +305,12 @@ class Hypnodensity(object):
             if hasC4:
                 centrals_idx = 0
                 unused_ch = self.get_loudest_channel(['C3','C4'],meanV[centrals_idx], covM[centrals_idx])
-                self.channels_used[unused_ch] = []
+                del self.channels_used[unused_ch]
 
             if hasO2:
                 occipitals_idx = 1
                 unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
-                self.channels_used[unused_ch] = []
+                del self.channels_used[unused_ch]
 
             # if idx['O2']:
             #     noiseO1 = self.channel_noise_level('O1', meanV[idx['occipitals']], covM[idx['occipitals']])
@@ -359,7 +359,7 @@ class Hypnodensity(object):
         # return loudest_ch
 
     def channel_noise_level(self, channelTag, meanV, covM):
-        pdb.set_trace()
+        
         hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
         noise_vec = np.zeros(hjorth.shape[1])
         for k in range(len(noise_vec)):
