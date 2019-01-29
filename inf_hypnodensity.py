@@ -25,6 +25,7 @@ from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
 
+import pdb
 
 def softmax(x):
     e_x = np.exp(x)
@@ -187,11 +188,9 @@ class Hypnodensity(object):
         count = -1
         enc = []
 
-        for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            pdb.set_trace()
-            if isinstance(self.channels_used[c], int):  # Central, Occipital, EOG-L, EOG-R, chin
-                # append autocorrelations
-                enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
+        for c in self.channels_used: # Central, Occipital, EOG-L, EOG-R, chin
+            # append autocorrelations
+            enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
 
         # Append eog cross correlation
         enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25, self.fs))
@@ -238,7 +237,8 @@ class Hypnodensity(object):
                 self.trim(ch)
 
             else:
-                print('channel[', ch, '] was empty (skipped)', sep='');
+                print('channel[', ch, '] was empty (skipped)', sep='')
+                del self.channels_used[ch]
 
     def trim(self, ch):
         rem = len(self.loaded_channels[ch]) % int(self.fs * 30)
@@ -288,54 +288,88 @@ class Hypnodensity(object):
             self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
                                         self.fs, fs, axis=0, window=('kaiser', 5.0))
 
+
     def psg_noise_level(self):
 
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
         # by first checking if there is a channel category 'C4' or 'O2'
-        idx_C4 = [] # 'C4'
-        idx_O2 = [] # 'O2'
-        for idx, ch in enumerate(self.channels[:4]):
-            if ch=='C4':
-                idx_C4 = idx
-            elif ch=='O2':
-                idx_O2 == idx
+        hasC4 = self.channels_used.get('C4')
+        hasO2 = self.channels_used.get('O2')
 
-        if idx_C4 or idx_O2:
-
+        if hasC4 or hasO2:
             noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
-            meanV = noiseM['meanV'].item()
-            covM = noiseM['covM'].item()
-            if idx_C4:
-                idx_dist = 0
-                hjorth_C3 = self.extract_hjorth(self.loaded_channels['C3'])
-                hjorth_C4 = self.extract_hjorth(self.loaded_channels['C4'])
+            meanV = noiseM['meanV'].item()  # 0 for Central,    idx_central = 0
+            covM = noiseM['covM'].item()    # 1 for Occipital,  idx_occipital = 1
 
-            if idx_O2:
-                idx_dist = 1
+            if hasC4:
+                centrals_idx = 0
+                unused_ch = self.get_loudest_channel(['C3','C4'],meanV[centrals_idx], covM[centrals_idx])
+                self.channels_used[unused_ch] = []
+
+            if hasO2:
+                occipitals_idx = 1
+                unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
+                self.channels_used[unused_ch] = []
+
+            # if idx['O2']:
+            #     noiseO1 = self.channel_noise_level('O1', meanV[idx['occipitals']], covM[idx['occipitals']])
+            #     noiseO2 = self.channel_noise_level('O2', meanV[idx['occipitals']], covM[idx['occipitals']])
+            #
+            #     if noiseO1>noiseO2:
+            #         unused_ch = 'O1'
+            #     else:
+            #         unused_ch = 'O2'
+            #     self.channels_used[unused_ch] = []
 
             # noise = np.ones(len([k for k, v in self.loaded_channels.items() if v is not None])) * np.inf
-            noise = np.zeros(4)
-            dist = np.array([0, 0, 1, 1])
-            for idx, ch in enumerate(self.channels[:4]):
+            # noise = np.zeros(4)
+            # dist = np.array([0, 0, 1, 1])
+            # for idx, ch in enumerate(self.channels[:4]):
+            #
+            #     if self.channels_used[ch]:
+            #         hjorth = self.extract_hjorth(self.loaded_channels[ch])
+            #
+            #         noise_vec = np.zeros(hjorth.shape[1])
+            #         for k in range(len(noise_vec)):
+            #             M = hjorth[:, k][:, np.newaxis]
+            #             x = M - meanV[dist[idx]][:, np.newaxis]
+            #             sigma = np.linalg.inv(covM[dist[idx]])
+            #             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
+            #
+            #             noise[idx] = np.mean(noise_vec)
+            #
+            # notUsedC = np.argmax(noise[:2])
+            # notUsedO = np.argmax(noise[2:4]) + 2
+            #
+            # self.channels_used[self.channels[notUsedC]] = []
+            # self.channels_used[self.channels[notUsedO]] = []
 
-                if self.channels_used[ch]:
-                    hjorth = self.extract_hjorth(self.loaded_channels[ch])
+    def get_loudest_channel(self, channelTags, meanV, covM):
+        noise = np.zeros(len(channelTags))
+        for [idx,ch] in enumerate(channelTags):
+            noise[idx] = self.channel_noise_level(ch, meanV, covM)
+        return channelTags[np.argmax(noise)]
 
-                    noise_vec = np.zeros(hjorth.shape[1])
-                    for k in range(len(noise_vec)):
-                        M = hjorth[:, k][:, np.newaxis]
-                        x = M - meanV[dist[idx]][:, np.newaxis]
-                        sigma = np.linalg.inv(covM[dist[idx]])
-                        noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
+        # for ch in channelTags:
+        #     noise = self.channel_noise_level(ch, meanV, covM)
+        #     if noise >= loudest_noise:
+        #         loudest_noise = noise
+        #         loudest_ch = ch
+        # return loudest_ch
 
-                        noise[idx] = np.mean(noise_vec)
+    def channel_noise_level(self, channelTag, meanV, covM):
+        pdb.set_trace()
+        hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
+        noise_vec = np.zeros(hjorth.shape[1])
+        for k in range(len(noise_vec)):
+            M = hjorth[:, k][:, np.newaxis]
+            x = M - meanV[:, np.newaxis]
+            sigma = np.linalg.inv(covM)
+            noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
 
-            notUsedC = np.argmax(noise[:2])
-            notUsedO = np.argmax(noise[2:4]) + 2
+            return np.mean(noise_vec)
 
-            self.channels_used[self.channels[notUsedC]] = []
-            self.channels_used[self.channels[notUsedO]] = []
 
     def run_data(dat, model, root_model_path):
 
