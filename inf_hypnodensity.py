@@ -4,28 +4,33 @@ Created on Wed Jul 12 23:58:10 2017
 
 @author: jens
 @modifer: hyatt
+@modifier: neergaard
 # from: inf_eval --> to: inf_generate_hypnodensity
 """
 import itertools  # for extracting feature combinations
 import os  # for opening os files for pickle.
 import pickle
-import time  # for tracking time spent in encoding
-from decimal import *
 from pathlib import Path
 
-import pdb
-
+import skimage
 import numpy as np
 import pyedflib
 import pywt  # wavelet entropy
 import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
 import tensorflow as tf
+from scipy.fftpack import fft, ifft, irfft, fftshift
 
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
 
+import pdb
+
+def softmax(x):
+    e_x = np.exp(x)
+    div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
+    return np.divide(e_x, div)
 
 class Hypnodensity(object):
 
@@ -40,7 +45,7 @@ class Hypnodensity(object):
         self.loaded_channels = appConfig.loaded_channels
         self.edf_pathname = appConfig.edf_path
         self.encodedD = []
-        self.fs = appConfig.fs
+        self.fs = int(appConfig.fs)
         self.fsH = appConfig.fsH
         self.fsL = appConfig.fsL
         self.lightsOff = appConfig.lightsOff
@@ -63,9 +68,14 @@ class Hypnodensity(object):
         else:
             myprint('Load EDF')
             self.loadEDF()
+
             myprint('Load noise level')
-            # pdb.set_trace();
             self.psg_noise_level()
+
+            self.filtering()
+
+            print('filtering done')
+
             print('Encode')
             self.encoding()
 
@@ -75,7 +85,7 @@ class Hypnodensity(object):
                 myprint("pickling done")
 
         if (h.exists()):
-            myprint('Loading previously saved hynpodesnity')
+            myprint('Loading previously saved hypnodensity')
             with h.open('rb') as fp:
                 self.hypnodensity = pickle.load(fp)
         else:
@@ -86,8 +96,9 @@ class Hypnodensity(object):
                 pickle.dump(self.hypnodensity, fp)
                 myprint("Hypnodensity pickled")
 
+    # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
     def get_hypnodensity(self):
-        av = np.zeros(self.hypnodensity[0].shape)
+        av = np.zeros(self.hypnodensity[0].shape)  # for example, 2144, 5)
 
         for i in range(len(self.hypnodensity)):
             av += self.hypnodensity[i]
@@ -95,34 +106,44 @@ class Hypnodensity(object):
         av = np.divide(av, len(self.hypnodensity))
         return av
 
+    # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+    def get_hypnogram(self):
+        hypno = self.get_hypnodensity()
+        return np.argmax(hypno, axis=1)
+
     def get_features(self, modelName, idx):
         selected_features = self.config.narco_prediction_selected_features
         X = self.Features.extract(self.hypnodensity[idx])
         X = self.Features.scale_features(X, modelName)
         return X[selected_features].T
 
-    def extract_hjorth(self, x):
+    def extract_hjorth(self, x, dim=5 * 60, slide=5 * 60):
 
-        # Segment
-        N = np.arange(0, len(x), 100 * 60 * 5)
-        B = [np.expand_dims(x[N[i]:N[i + 1]], 1) for i in np.arange(len(N) - 1)]
-        B = np.concatenate(B, axis=1)
-        # Activity
-        act = np.var(B, axis=0)
+        # Length of first dimension
+        dim = dim * self.fs
 
-        # Mobility
+        # Overlap of segments in samples
+        slide = slide * self.fs
 
-        mobil = self.mob(B)
+        # Creates 2D array of overlapping segments
+        D = skimage.util.view_as_windows(x, dim, dim).T
 
-        # Complexity
-        comp = np.divide(self.mob(np.diff(B, axis=0)), mobil)
+        # Extract Hjorth params for each segment
+        dD = np.diff(D, 1, axis=0)
+        ddD = np.diff(dD, 1, axis=0)
+        mD2 = np.mean(D ** 2, axis=0)
+        mdD2 = np.mean(dD ** 2, axis=0)
+        mddD2 = np.mean(ddD ** 2, axis=0)
 
-        # transform
-        lAct = np.mean(np.log(act))
-        lMobil = np.mean(np.log(mobil))
-        lComp = np.mean(np.log(comp))
+        top = np.sqrt(np.divide(mddD2, mdD2))
 
-        return np.array([lAct, lMobil, lComp])
+        mobility = np.sqrt(np.divide(mdD2, mD2))
+        activity = mD2
+        complexity = np.divide(top, mobility)
+
+        hjorth = np.array([activity, complexity, mobility])
+        hjorth = np.log(hjorth + np.finfo(float).eps)
+        return hjorth
 
     def mob(self, B):
         diff = np.diff(B, axis=0)
@@ -132,114 +153,57 @@ class Hypnodensity(object):
 
     def encoding(self):
 
+        def encode_data(x1, x2, dim, slide, fs):
+
+            # Length of the first dimension and overlap of segments
+            dim = int(fs * dim)
+            slide = int(fs * slide)
+
+            # Create 2D array of overlapping segments
+            zero_vec = np.zeros(dim // 2)
+            input2 = np.concatenate((zero_vec, x2, zero_vec))
+            D1 = skimage.util.view_as_windows(x1, dim, slide).T
+            D2 = skimage.util.view_as_windows(input2, dim * 2, slide).T
+            zero_mat = np.zeros((dim // 2, D1.shape[1]))
+            D1 = np.concatenate([zero_mat, D1, zero_mat])
+
+            keep_dims = D1.shape[1]
+            D2 = D2[:, :keep_dims]
+            D1 = D1[:, :keep_dims]
+
+            # Fast implementation of auto/cross-correlation
+            C = fftshift(
+                np.real(ifft(fft(D1, dim * 2 - 1, axis=0) * np.conj(fft(D2, dim * 2 - 1, axis=0)), axis=0)),
+                axes=0).astype(dtype=np.float32)
+
+            # Remove mirrored part
+            C = C[dim // 2 - 1: - dim // 2]
+
+            # Scale data with log modulus
+            scale = np.log(np.max(np.abs(C) + 1, axis=0) / dim)
+            C = C[..., :] / (np.amax(np.abs(C), axis=0) / scale)
+
+            return C
+
         count = -1
         enc = []
-        # Central, Occipital, EOG and chin
 
-        numIterations = 4;  # there are actually 5 for CC, but this is just for displaying progress
-        numConcatenates = 5;
-        pdb.set_trace();
-        for c in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            start_time = time.time()
+        for c in self.channels_used: # Central, Occipital, EOG-L, EOG-R, chin
+            # append autocorrelations
+            enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
 
-            if isinstance(self.channels_used[c], int):
-                count += 1
-                n = int(self.fs * self.CCsize[c])
-                p = int(self.fs * (self.CCsize[c] - 0.25))
+        # Append eog cross correlation
+        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25, self.fs))
+        min_length = np.min([x.shape[1] for x in enc])
+        enc = [v[:, :min_length] for v in enc]
 
-                # TODO: There is an error in this buffer somewhere // Alex
-                B1 = self.buffering(self.loaded_channels[c], n, p)
-                print(B1.shape)
-                zeroP = np.zeros([int(B1.shape[0] / 2), B1.shape[1]])
-                B1 = np.concatenate([zeroP, B1, zeroP], axis=0)
-
-                n = int(self.fs * self.CCsize[c] * 2)
-                p = int(self.fs * (self.CCsize[c] * 2 - 0.25))
-
-                B2 = self.buffering(np.concatenate([np.zeros(int(n / 4)),
-                                                    self.loaded_channels[c], np.zeros(int(n / 4))]), n, p)
-
-                B2 = B2[:, :B1.shape[1]]
-
-                start_time = time.time()
-
-                F = np.fft.fft(B1, axis=0)
-                C = np.conj(np.fft.fft(B2, axis=0))
-
-                elapsed_time = time.time() - start_time
-                myprint("Finished FFT  %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
-                start_time = time.time()
-
-                CC = np.real(np.fft.fftshift(np.fft.ifft(np.multiply(F, C), axis=0), axes=0))
-
-                elapsed_time = time.time() - start_time
-                myprint("Finished CC %d of %d\nTime elapsed = %0.2f" % (count + 1, numIterations, elapsed_time));
-                start_time = time.time()
-
-                CC[np.isnan(CC)] = 0
-                CC[np.isinf(CC)] = 0
-
-                CC = CC[int(CC.shape[0] / 4):int(CC.shape[0] * 3 / 4), :]
-                sc = np.max(CC, axis=0)
-                sc = np.multiply(np.sign(sc), np.log((np.abs(sc) + 1) /
-                                                     (self.CCsize[c] * self.fs))) / (sc + 1e-10)
-
-                CC = np.multiply(CC, sc)
-                CC.astype(np.float32)
-
-                if len(enc) > 0:
-                    enc = np.concatenate([enc, CC])
-                else:
-                    enc = CC
-
-                if count == 2:
-                    eog1 = F
-
-                if count == 3:
-                    PS = eog1 * C
-                    CC = np.real(np.fft.fftshift(np.fft.ifft(PS, axis=0), axes=0))
-                    CC = CC[int(CC.shape[0] / 4):int(CC.shape[0] * 3 / 4), :]
-                    sc = np.max(CC, axis=0)
-                    sc = np.multiply(np.sign(sc), np.log((np.abs(sc) + 1) /
-                                                         (self.CCsize[c] * self.fs))) / (sc + 1e-10)
-
-                    CC = np.multiply(CC, sc)
-                    CC.astype(np.float32)
-
-                    enc = np.concatenate([enc, CC])
-
-                pdb.set_trace()
-                elapsed_time = time.time() - start_time
-                myprint("Finished enc concatenate %d of %d\nTime elapsed = %0.2f" % (
-                count + 1, numConcatenates, elapsed_time))
-
+        # Central, Occipital, EOG-L, EOG-R, EOG-L/R, chin
+        enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
         if isinstance(self.lightsOff, int):
-            self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn] # This needs double checking @hyatt 11/12/2018
-
-    def buffering(self, x, n, p=0):
-
-        if p >= n:
-            raise ValueError('p ({}) must be less than n ({}).'.format(p, n))
-
-        # Calculate number of columns of buffer array
-        cols = int(np.floor(len(x) / (n - p)))
-        # Check for opt parameters
-
-        # Create empty buffer array
-        b = np.zeros((n, cols))
-
-        # Fill buffer by column handling for initial condition and overlap
-        j = 0
-        slide = n - p
-        start = 0
-        for i in range(cols - int(np.ceil(n / (n - p)))):
-            # Set first column to n values from x, move to next iteration
-            b[:, i] = x[start:start + n]
-            start += slide
-
-        return b
+            self.encodedD = self.encodedD[:,
+                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking as magic numbers are problematic here. @hyatt 11/12/2018
 
     def loadEDF(self):
         if not self.edf:
@@ -262,24 +226,19 @@ class Hypnodensity(object):
                     myprint('v')
                     self.loaded_channels[ch] *= 1e6
 
-                # myprint('Resampling skipped ...')
-
-                fs = self.edf.samplefrequency(self.channels_used[ch])
-                fs = Decimal(fs).quantize(Decimal('.0001'), rounding=ROUND_DOWN)
+                fs = int(self.edf.samplefrequency(self.channels_used[ch]))
+                # fs = Decimal(fs).quantize(Decimal('.0001'), rounding=ROUND_DOWN)
                 print('fs', fs)
 
                 self.resampling(ch, fs)
                 print('Resampling done')
 
-                # Trimming excess ...
+                # Trim excess
                 self.trim(ch)
-                pdb.set_trace();
-                self.filtering(ch, 100)
-                pdb.set_trace();
-                print('filtering done')
 
             else:
-                print('channel[', ch, '] was empty (skipped)', sep='');
+                print('channel[', ch, '] was empty (skipped)', sep='')
+                del self.channels_used[ch]
 
     def trim(self, ch):
         rem = len(self.loaded_channels[ch]) % int(self.fs * 30)
@@ -293,88 +252,96 @@ class Hypnodensity(object):
         signal_labels = self.edf.getSignalLabels()
         return signal_labels
 
-    def filtering(self, ch, fs):
+    def filtering(self):
+        myprint('Filtering remaining signals')
+        fs = self.fs
 
         Fh = signal.butter(5, self.fsH / (fs / 2), btype='highpass', output='ba')
-        self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
-        # self.loaded_channels[c] = signal.sosfiltfilt(Fh, self.loaded_channels[c], axis=-1)
+        Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
 
-        if fs > (2 * self.fsL):
-            Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
-            self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch])
-            # self.loaded_channels[c] = signal.sosfiltfilt(Fl, self.loaded_channels[c], axis=-1)
+        for ch, ch_idx in self.channels_used.items():
+            if ch_idx:
+                myprint('Filtering {}'.format(ch))
+                self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
+
+                if fs > (2 * self.fsL):
+                    self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch]).astype(
+                        dtype=np.float32)
 
     def resampling(self, ch, fs):
-        # ratio = np.float(self.fs)/np.round(np.float(fs));
         myprint("original samplerate = ", fs);
         myprint("resampling to ", self.fs)
-        numerator = [-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0, 0.0376532652007562,
-                  0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
-                  0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0, -0.0186368912579407,
-                  -0.0208207236911009, -0.0175636017706537]  # taken from matlab
-        s = signal.dlti(numerator, [1], dt=1./self.fs)
+        if fs==500 or fs==200:
+            numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
+                0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
+                0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
+                -0.0208207236911009, -0.0175636017706537],
+                [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
+                -0.050624178425469]]  # from matlab
+            if fs==500:
+                s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
+            elif fs==200:
+                s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
+        else:
+            self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
+                                        self.fs, fs, axis=0, window=('kaiser', 5.0))
 
-
-        self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], int(int(fs)/self.fs), ftype=s, zero_phase=False)
-        # self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
-        #                                                self.fs, fs, axis=0, window=('kaiser', 5.0))
-        # [N,D] = rat(desired_samplerate/src_samplerate);
-        # if N!=D:
-        #    if len(self.loaded_channels[c])>0:
-        #        raw_data = resample(raw_data,N,D); #%resample to get the desired sample rate
-
-        # print('ratio')
-        # converter = 'sinc_best'
-        # self.loaded_channels[c] = samplerate.resample(self.loaded_channels[c], ratio, converter)
-
-        # self.loaded_channels[c] = samplerate.resample(self.loaded_channels[c], ratio, converter)
-        # resampler = samplerate.Resampler(converter, channels=1)
-        # print('resampler')
-
-        # self.loaded_channels[c] = resampler.process(self.loaded_channels[c],
-        #                                     ratio, end_of_input=True)
-        # print('resampler.process')
-        # self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
-        #                    self.fs, fs, axis=0, window=('kaiser', 5.0))
 
     def psg_noise_level(self):
-        noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True, struct_as_record=False)
-        noiseM = noiseM['noiseM']
 
-        noise = np.ones(4) * np.inf
-        count = -1
-        for ch in self.channels[:4]:
-            count += 1
+        # Only need to check noise levels when we have two central or occipital channels
+        # which we should then compare for quality and take the best one.  We can test this
+        # by first checking if there is a channel category 'C4' or 'O2'
+        hasC4 = self.channels_used.get('C4')
+        hasO2 = self.channels_used.get('O2')
 
-            if self.channels_used[ch]:
-                hjorth = self.extract_hjorth(self.loaded_channels[ch])
+        if hasC4 or hasO2:
+            noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
+            meanV = noiseM['meanV'].item()  # 0 for Central,    idx_central = 0
+            covM = noiseM['covM'].item()    # 1 for Occipital,  idx_occipital = 1
 
-                cov = np.array(noiseM.covM[count])
+            if hasC4:
+                centrals_idx = 0
+                unused_ch = self.get_loudest_channel(['C3','C4'],meanV[centrals_idx], covM[centrals_idx])
+                del self.channels_used[unused_ch]
 
-                covI = np.linalg.inv(cov)
-                meanV = np.array(noiseM.meanV[count])
-                noise[count] = np.sqrt(np.matmul(np.matmul(np.transpose(hjorth - meanV),
-                                                           covI), (hjorth - meanV)))
+            if hasO2:
+                occipitals_idx = 1
+                unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
+                del self.channels_used[unused_ch]
 
-        notUsedC = np.argmax(noise[:2])
-        notUsedO = np.argmax(noise[2:4]) + 2
 
-        self.channels_used[self.channels[notUsedC]] = []
-        self.channels_used[self.channels[notUsedO]] = []
+    def get_loudest_channel(self, channelTags, meanV, covM):
+        noise = np.zeros(len(channelTags))
+        for [idx,ch] in enumerate(channelTags):
+            noise[idx] = self.channel_noise_level(ch, meanV, covM)
+        return channelTags[np.argmax(noise)]
 
-    def softmax(self, x):
+        # for ch in channelTags:
+        #     noise = self.channel_noise_level(ch, meanV, covM)
+        #     if noise >= loudest_noise:
+        #         loudest_noise = noise
+        #         loudest_ch = ch
+        # return loudest_ch
 
-        # e_x = np.exp(x - np.max(x))
-        # return e_x / e_x.sum()
-        e_x = np.exp(x)
-        div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
-        return np.divide(e_x, div)
+    def channel_noise_level(self, channelTag, meanV, covM):
+
+        hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
+        noise_vec = np.zeros(hjorth.shape[1])
+        for k in range(len(noise_vec)):
+            M = hjorth[:, k][:, np.newaxis]
+            x = M - meanV[:, np.newaxis]
+            sigma = np.linalg.inv(covM)
+            noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
+
+            return np.mean(noise_vec)
+
 
     def run_data(dat, model, root_model_path):
 
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
-        # root_train_data_dir,
-        # root_test_data_dir))
         hyp = Hypnodensity.run(dat, ac_config)
         return hyp
 
@@ -382,30 +349,24 @@ class Hypnodensity(object):
         self.hypnodensity = list()
         for l in self.config.models_used:
             hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
-            hyp = self.softmax(hyp)
+            hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
 
     def segment(dat, ac_config):
 
-
         # Get integer value for segment size using //
-        n_seg = dat.shape[1]//ac_config.segsize
+        n_seg = dat.shape[1] // ac_config.segsize
 
-        #For debugging
-        # pdb.set_trace()
+        dat = np.expand_dims(dat[:, :n_seg * ac_config.segsize], 0)
 
-        # Incorrect I think ... commented out on 10/30/2018  @hyatt
-        # dat = np.expand_dims(dat[:n_seg*ac_config.segsize,:],0)
-        dat = np.expand_dims(dat[:,:n_seg*ac_config.segsize],0)
+        num_batches = np.int(
+            np.ceil(np.divide(dat.shape[2], (ac_config.eval_nseg_atonce * ac_config.segsize), dtype='float')))
 
-        num_batches = np.int(np.ceil(np.divide(dat.shape[2],(ac_config.eval_nseg_atonce*ac_config.segsize),dtype='float')))
-
-        Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize)%dat.shape[2])
-              # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
+        Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize) % dat.shape[2])
+        # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
 
         # fill remaining (nExtra) values with the mean value of each column
-        meanF = np.mean(np.mean(dat,2),0) * np.ones([1,Nextra,dat.shape[1]])
-
+        meanF = np.mean(np.mean(dat, 2), 0) * np.ones([1, Nextra, dat.shape[1]])
 
         dat = np.transpose(dat, [0, 2, 1])
         dat = np.concatenate([dat, meanF], 1)
@@ -419,11 +380,11 @@ class Hypnodensity(object):
         with tf.Graph().as_default() as g:
             m = SCModel(ac_config)
             s = tf.train.Saver(tf.global_variables())
+
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
+
             with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as session:
                 ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
-                # For debugging
-                # pdb.set_trace()
 
                 s.restore(session, ckpt.model_checkpoint_path)
 
@@ -431,9 +392,7 @@ class Hypnodensity(object):
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
-                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(
-                                                                                              i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,
-                        :]
+                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,:]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
@@ -567,7 +526,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-        #
 
         features[-24] = self.logmodulus(SL * f)
         features[-23] = self.logmodulus(RL - SL * f)
@@ -628,7 +586,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
         for i in range(5):
             S[:, i] = np.convolve(data[:, i], np.ones(9), mode='same')
 
-        S = self.softmax(S)
+        S = softmax(S)
 
         cumR = np.zeros(S.shape)
         Th = 0.2;
@@ -685,12 +643,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         features = np.concatenate([transitions, nPeaks], axis=0)
         return features
-
-    def softmax(self, x):
-        """Compute softmax values for each sets of scores in x."""
-        e_x = np.exp(x)
-        div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
-        return np.divide(e_x, div)
 
     def find_peaks(self, x):
         peaks = []
