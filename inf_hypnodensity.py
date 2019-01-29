@@ -312,38 +312,6 @@ class Hypnodensity(object):
                 unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
 
-            # if idx['O2']:
-            #     noiseO1 = self.channel_noise_level('O1', meanV[idx['occipitals']], covM[idx['occipitals']])
-            #     noiseO2 = self.channel_noise_level('O2', meanV[idx['occipitals']], covM[idx['occipitals']])
-            #
-            #     if noiseO1>noiseO2:
-            #         unused_ch = 'O1'
-            #     else:
-            #         unused_ch = 'O2'
-            #     self.channels_used[unused_ch] = []
-
-            # noise = np.ones(len([k for k, v in self.loaded_channels.items() if v is not None])) * np.inf
-            # noise = np.zeros(4)
-            # dist = np.array([0, 0, 1, 1])
-            # for idx, ch in enumerate(self.channels[:4]):
-            #
-            #     if self.channels_used[ch]:
-            #         hjorth = self.extract_hjorth(self.loaded_channels[ch])
-            #
-            #         noise_vec = np.zeros(hjorth.shape[1])
-            #         for k in range(len(noise_vec)):
-            #             M = hjorth[:, k][:, np.newaxis]
-            #             x = M - meanV[dist[idx]][:, np.newaxis]
-            #             sigma = np.linalg.inv(covM[dist[idx]])
-            #             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
-            #
-            #             noise[idx] = np.mean(noise_vec)
-            #
-            # notUsedC = np.argmax(noise[:2])
-            # notUsedO = np.argmax(noise[2:4]) + 2
-            #
-            # self.channels_used[self.channels[notUsedC]] = []
-            # self.channels_used[self.channels[notUsedO]] = []
 
     def get_loudest_channel(self, channelTags, meanV, covM):
         noise = np.zeros(len(channelTags))
@@ -359,7 +327,7 @@ class Hypnodensity(object):
         # return loudest_ch
 
     def channel_noise_level(self, channelTag, meanV, covM):
-        
+
         hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
         noise_vec = np.zeros(hjorth.shape[1])
         for k in range(len(noise_vec)):
@@ -558,7 +526,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-        #
 
         features[-24] = self.logmodulus(SL * f)
         features[-23] = self.logmodulus(RL - SL * f)
