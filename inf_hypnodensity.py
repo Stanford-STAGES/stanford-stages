@@ -25,7 +25,7 @@ from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
 
-import pdb
+# import pdb
 
 def softmax(x):
     e_x = np.exp(x)

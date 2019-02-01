@@ -10,7 +10,7 @@ import os
 import sys
 import warnings
 from datetime import datetime
-
+# import pdb
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 
 # for getting predictions
@@ -79,7 +79,7 @@ def main(edfFilename,
     hyp['show']['plot'] = False
     hyp['show']['hypnogram'] = False
     hyp['show']['hypnodensity'] = False
-    hyp['show']['diagnosis'] = False
+    hyp['show']['diagnosis'] = True
 
     hyp['save']['plot'] = True
     hyp['save']['hypnogram'] = True
