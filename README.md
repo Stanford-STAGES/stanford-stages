@@ -30,9 +30,7 @@ The sleep study CHP_040.edf is may be used to verify your setup.  It can be down
 1. [Mirror 1](https://stanfordmedicine.box.com/shared/static/0lvvyaprzinzz7dult87t7hr96s2dnqq.edf) [380 MB]
 2. [Mirror 2](https://www.informaton.org/narco/ml/validation/CHP_040.edf) [380 MB]
 
-The sleep study may be placed in any directory.  Edit the shell script <i>verify_chp_040.sh</i> so that the
-absolute pathname for CHP040.edf is given for the FILENAME variable.  In this example, it is assumed to have been saved
-to the directory `/Users/unknown/data/sleep/narcoTest/` and so the the FILENAME variable should be set as follows:
+The sleep study may be placed in any directory.  Edit the shell script <i>verify_chp_040.sh</i> so that the absolute pathname for CHP040.edf is given for the FILENAME variable.  In this example, it is assumed to have been saved to the directory `/Users/unknown/data/sleep/narcoTest/` and so the the FILENAME variable should be set as follows:
 
 <pre><code>FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"</code></pre>
 
@@ -59,9 +57,9 @@ and saved in the same directory as the input CHP040.edf file.
 
 Expected results for the ac_rh_ls_lstm_01 hypnogram and hypnodensity results can be found here:
 
-* [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP_040.hypnogram.txt) [270 KB]
+* [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnogram.txt) [270 KB]
 
-* [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP_040.hypnodensity.png) [155 KB]
+* [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnodensity.png) [155 KB]
 
 Expected diagnosis output is:
 
