@@ -18,14 +18,11 @@ Classification models are hosted externally and should be downloaded and extract
 * ac.zip - www.informaton.org/narco/ml/ac.zip [1.0 GB]
 * gp.zip - www.informaton.org/narco/ml/gp.zip  [64 MB]
 
-When complete the 'ml/' directory tree should like this:
-
-<pre><code>
-ac/
+When complete the 'ml/' directory tree should like:
+<pre>ac/
 gp/
 noiseM.mat
-scaling
-</code></pre>
+scaling</pre>
 
 ## Validation
 
@@ -43,7 +40,7 @@ The sleep study may be placed in any directory.  Edit the shell script <i>verify
 absolute pathname for CHP040.edf is given for the FILENAME variable.  In this example, it is assumed to have been saved
 to the directory "/Users/unknown/data/sleep/narcoTest/" and so the the FILENAME variable should be set as follows:
 
-FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"
+<pre><code>FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"</code></pre>
 
 Run the shell script from a command line terminal as:
 
