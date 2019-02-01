@@ -1,4 +1,3 @@
-#from scipy.fftpack import fft
 def myprint(str,*args):
     silent = True
     silent = False

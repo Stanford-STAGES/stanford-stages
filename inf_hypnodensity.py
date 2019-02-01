@@ -201,9 +201,11 @@ class Hypnodensity(object):
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
+        # Needs double checking as magic numbers are problematic here and will vary based on configuration settings.  @hyatt 11/12/2018
+        # Currently, this is not supported as an input json parameter, but will need to adjust accordingly if this changes.
         if isinstance(self.lightsOff, int):
             self.encodedD = self.encodedD[:,
-                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]  # This needs double checking as magic numbers are problematic here. @hyatt 11/12/2018
+                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
 
     def loadEDF(self):
         if not self.edf:
@@ -417,8 +419,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
         self.scaleV = []
         self.selected = []  # [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296, 299, 390, 405, 450, 467, 468, 470, 474, 476, 477]
         self.scale_path = appConfig.hypnodensity_scale_path  # 'scaling'
-        self.select_features_path = appConfig.hypnodensity_select_features_path
-        self.select_features_pickle_name = appConfig.hypnodensity_select_features_pickle_name  # 'narcoFeatureSelect.p'
+        # self.select_features_path = appConfig.hypnodensity_select_features_path
+        # self.select_features_pickle_name = appConfig.hypnodensity_select_features_pickle_name  # 'narcoFeatureSelect.p'
 
     def extract(self, hyp):
         eps = 1e-10

@@ -39,8 +39,8 @@ class AppConfig(object):
         self.psg_noise_file_pathname = './ml/noiseM.mat'
         self.hypnodensity_model_root_path = './ml/'
         self.hypnodensity_scale_path = './ml/scaling/'
-        self.hypnodensity_select_features_path = './ml/'
-        self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
+        # self.hypnodensity_select_features_path = './ml/'
+        # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
 
         self.Kfold = 10  # or 20
         self.edf_path = []
