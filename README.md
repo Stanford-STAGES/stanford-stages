@@ -36,7 +36,7 @@ The sleep study may be placed in any directory.  Edit the shell script <i>verify
 
 See the single model validation configuration
 
-### Single model validation
+### Using one model (quick check)
 
 This validation tests your configuration using one model, 'ac_rh_ls_lstm_01' and is recommended as
 a first step to making sure the application is configured correctly simply because it takes
@@ -67,7 +67,7 @@ Expected diagnosis output is:
 Diagnosis: Narcolepsy type 1</pre>
 
 
-### All
+### Using all models
 
 This validation tests your configuration using all 16 models and is the recommended way
 for running the application.  
@@ -83,7 +83,7 @@ for running the application.
                     'ac_rh_ls_lstm_13', 'ac_rh_ls_lstm_14',
                     'ac_rh_ls_lstm_15', 'ac_rh_ls_lstm_16']</code></pre>
 
-1. Run the shell script from a command line terminal as:
+2. Run the shell script from a command line terminal as:
 
 <pre><code>sh ./verify_chp_040.sh</code></pre>
 
@@ -92,7 +92,7 @@ Note: If the shell script has been run before using a single model, you will nee
 <pre><code># rm /Users/unknown/data/sleep/narcoTest/CHP040.\*pkl</code></pre>
 to remove any previously saved pickle files.
 
-2. Check results
+3. Check results
 
 Upon successful completion, a hypnogram file and hypnodensity image will be created
 and saved in the same directory as the input CHP040.edf file.  
