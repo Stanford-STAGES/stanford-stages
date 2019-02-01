@@ -18,8 +18,8 @@ Classification models are hosted externally and should be downloaded and extract
 * ac.zip - www.informaton.org/narco/ml/ac.zip [1.0 GB]
 * gp.zip - www.informaton.org/narco/ml/gp.zip  [64 MB]
 
-When complete the 'ml/' directory tree should like:
-<pre>ac/
+When complete the 'ml/' directory tree should like:<pre>
+ac/
 gp/
 noiseM.mat
 scaling</pre>
@@ -38,7 +38,7 @@ The sleep study CHP_040.edf is may be used to verify your setup.  It can be down
 
 The sleep study may be placed in any directory.  Edit the shell script <i>verify_chp_040.sh</i> so that the
 absolute pathname for CHP040.edf is given for the FILENAME variable.  In this example, it is assumed to have been saved
-to the directory "/Users/unknown/data/sleep/narcoTest/" and so the the FILENAME variable should be set as follows:
+to the directory `/Users/unknown/data/sleep/narcoTest/` and so the the FILENAME variable should be set as follows:
 
 <pre><code>FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"</code></pre>
 
@@ -47,7 +47,7 @@ Run the shell script from a command line terminal as:
 <pre><code>sh ./verify_chp_040.sh</code></pre>
 
 Upon successful completion, a hypnogram file and hypnodensity image will be created
-and saved in the same directory as the input CHP040.edf file, that is "/Users/unknown/data/sleep/narcoTest/".
+and saved in the same directory as the input CHP040.edf file, that is `/Users/unknown/data/sleep/narcoTest/`.
 
 Expected results for the hypnogram and hypnodensity can be found here:
 
@@ -55,9 +55,9 @@ Expected results for the hypnogram and hypnodensity can be found here:
 
 * [Hypnodensity image](https://www.informaton.org/narco/ml/validation/CHP_040.hypnodensity.png) [155 KB]
 
-* Diagnosis
+* Diagnosis results:
 
-Score: -0.0076, Diagnosis: Narcolepsy type 1
+  <pre>Score: -0.0076, Diagnosis: Narcolepsy type 1</pre>
 
 ### Narcolepsy output
 
