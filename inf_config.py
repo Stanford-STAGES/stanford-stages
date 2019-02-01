@@ -15,7 +15,9 @@ class AppConfig(object):
                             'ac_rh_ls_lstm_11', 'ac_rh_ls_lstm_12',
                             'ac_rh_ls_lstm_13', 'ac_rh_ls_lstm_14',
                             'ac_rh_ls_lstm_15', 'ac_rh_ls_lstm_16']
-        self.models_used = ['ac_rh_ls_lstm_01']
+
+        # Uncomment the following when running validation comparison given in readme file.
+        # self.models_used = ['ac_rh_ls_lstm_01']
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
