@@ -119,11 +119,11 @@ The algorithm produces values between −1 and 1, with 1 indicating a high proba
 The hypnogram provides a numeric indicator of wake or sleep stage for every epoch scored.  
 By default, epochs are scored in 15 s intervals as follows:
 
-* `0` wake
-* `1` wake Stage 1 sleep
-* `2` wake Stage 2 sleep
-* `3` wake Stage 3/4 sleep
-* `5` Rapid eye movement (REM) sleep
+* Wake: `0`
+* Stage 1 sleep: `1`
+* Stage 2 sleep: `2`
+* Stage 3/4 sleep: `3`
+* Rapid eye movement (REM) sleep: `5`
 
 ### Hypnodensity
 
