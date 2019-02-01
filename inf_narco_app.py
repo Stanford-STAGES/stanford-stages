@@ -10,7 +10,7 @@ import os
 import sys
 import warnings
 from datetime import datetime
-# import pdb
+import pdb
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 
 # for getting predictions
@@ -101,20 +101,31 @@ def main(edfFilename,
     # narcoApp.eval_all()
     narcoApp.eval_hypnodensity()
 
-    hypnogram = narcoApp.get_hypnogram()
 
 
-    if hyp['show']['diagnosis']:
-        print(narcoApp.get_diagnosis())
-
-    if hypnoConfig['save']['diagnosis']:
-        narcoApp.save_diagnosis(fileName=hypnoConfig['filename']['diagnosis'])
+    if hypnoConfig['show']['hypnogram']:
+        print("Hypnogram:")
+        hypnogram = narcoApp.get_hypnogram()
+        np.set_printoptions(threshold=10000, linewidth=150) # use linewidth = 2 to output as a single column
+        print(hypnogram)
 
     if hypnoConfig['save']['hypnogram']:
         narcoApp.save_hypnogram(fileName=hypnoConfig['filename']['hypnogram'])
 
+    if hypnoConfig['show']['hypnogram']:
+        print("Hypnodensity:")
+        hypnodensity = narcoApp.get_hypnodensity()
+        np.set_printoptions(threshold=10000*5, linewidth=150)
+        print(hypnodensity)
+
     if hypnoConfig['save']['hypnodensity']:
         narcoApp.save_hypnodensity(fileName=hypnoConfig['filename']['hypnodensity'])
+
+    if hypnoConfig['show']['diagnosis']:
+        print(narcoApp.get_diagnosis())
+
+    if hypnoConfig['save']['diagnosis']:
+        narcoApp.save_diagnosis(fileName=hypnoConfig['filename']['diagnosis'])
 
     renderHypnodensity(narcoApp.get_hypnodensity(), showPlot=hypnoConfig['show']['plot'],
         savePlot=hypnoConfig['save']['plot'], fileName=hypnoConfig['filename']['plot'])
@@ -126,10 +137,10 @@ def changeFileExt(fullName, newExt):
 def renderHypnodensity(hypnodensity, showPlot=False, savePlot=False, fileName='tmp.png'):
     fig, ax = plt.subplots(figsize=[11, 5])
     av = np.cumsum(hypnodensity, axis=1)
-    C = [[0.90, 0.19, 0.87],
-         [0.2, 0.89, 0.93],
-         [0.22, 0.44, 0.73],
-         [0.34, 0.70, 0.39]]
+    C = [[0.90, 0.19, 0.87],  # pink
+         [0.2, 0.89, 0.93],   # aqua/turquoise
+         [0.22, 0.44, 0.73],  # blue
+         [0.34, 0.70, 0.39]]  # green
 
     for i in range(4):
         xy = np.zeros([av.shape[0] * 2, 2])
@@ -183,22 +194,22 @@ class NarcoApp(object):
 
     def save_diagnosis(self, fileName=''):
         if fileName == '':
-            fileName = changeFileExt(self.edf_path, '.diagnosis')
+            fileName = changeFileExt(self.edf_path, '.diagnosis.txt')
         with open(fileName,"w") as textFile:
             print(self.get_diagnosis(),file=textFile)
 
     def save_hypnodensity(self, fileName=''):
         if fileName == '':
-            fileName = changeFileExt(self.edf_path, '.hypnodensity')
+            fileName = changeFileExt(self.edf_path, '.hypnodensity.txt')
         hypno = self.get_hypnodensity()
         np.savetxt(fileName, hypno, delimiter=",")
 
     def save_hypnogram(self, fileName=''):
         if fileName == '':
-            fileName = changeFileExt(self.edf_path, '.hypnogram')
+            fileName = changeFileExt(self.edf_path, '.hypnogram.txt')
 
         hypno = self.get_hypnogram()
-        np.savetxt(fileName, hypno, delimiter=",")
+        np.savetxt(fileName, hypno, delimiter=",", fmt='%i')
 
     def get_narco_gpmodels(self):
 
@@ -254,6 +265,7 @@ if __name__ == '__main__':
 
     if sys.argv[1:]:  # if there are at least three arguments (two beyond [0])
 
+        # Random 'demo' option is no longer supported.  Demo.edf file has been removed.  2/1/2019 @hyatt
         if sys.argv[1] == 'demo':
 
             # print results
@@ -283,7 +295,8 @@ if __name__ == '__main__':
         else:
 
             edfFile = sys.argv[1]
-            # print(sys.argv[2]);
+
+            # For hard coding/bypassing json input argument, uncomment the following:
             # jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
             jsonObj = json.loads(sys.argv[2])
             try:

@@ -57,9 +57,9 @@ and saved in the same directory as the input CHP040.edf file.
 
 Expected results for the ac_rh_ls_lstm_01 hypnogram and hypnodensity results can be found here:
 
-* [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnogram.txt) [270 KB]
+* [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnogram.txt) [4 KB]
 
-* [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnodensity.png) [155 KB]
+* [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnodensity.png) [158 KB]
 
 Expected diagnosis output is:
 
@@ -99,7 +99,7 @@ and saved in the same directory as the input CHP040.edf file.
 
 Expected results for may be found here:
 
-* [Hypnogram (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnogram.txt) [270 KB]
+* [Hypnogram (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnogram.txt) [4 KB]
 
 * [Hypnodensity image (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnodensity.png) [155 KB]
 
@@ -113,6 +113,52 @@ Diagnosis: Narcolepsy type 1</pre>
 ### Narcolepsy diagnosis
 
 The algorithm produces values between −1 and 1, with 1 indicating a high probability of narcolepsy. The cut-off threshold between narcolepsy type 1 and “other“ is set at −0.03.  See [Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy](https://www.nature.com/articles/s41467-018-07229-3) for details.  
+
+### Hypnogram
+
+The hypnogram provides a numeric indicator of wake or sleep stage for every epoch scored.  
+By default, epochs are scored in 15 s intervals as follows:
+
+* `0` wake
+* `1` wake Stage 1 sleep
+* `2` wake Stage 2 sleep
+* `3` wake Stage 3/4 sleep
+* `5` Rapid eye movement (REM) sleep
+
+### Hypnodensity
+
+#### Text
+The hypnodensity text output is the same length (number of epochs/rows) as the hypnogram.  Instead of a
+sleep score, however, five probabilities are given representing the likelihood of the
+sleep stage corresponding to its column for the current epoch.  Probabilities are ordered
+starting with wake, and moving to deeper stages of sleep, with REM sleep last.
+
+For example:
+
+<pre>0.24 0.01 0.02 0.03 0.70</pre>
+
+Represents
+
+* Wake: 24% likelihood
+* Stage 1 sleep: 1% likelihood
+* Stage 2 sleep: 2% likelihood
+* Stage 3/4 sleep: 3% likelihood
+* REM sleep: 70% likelihood
+
+#### Image
+
+The x-axis of the hypnodensity plot represents the epochs from the beginning to the
+end of the study, which are measured in 15 s intervals by default.  The y-axis ranges from
+0 to 1 and represents the hypnodensity - the probability of each sleep stage and wake.  
+Different colors are used to represent wake and each sleep stage.  For each epoch, the probability of wake is drawn first as a vertical line to the proportion of the y-axis range it represents.
+Stage 1 is then stacked on top of this, followed by Stages 2, 3/4, and REM sleep such that the
+entire spectrum is covered.  Color matching is as follows:
+
+* Wake: white
+* Stage 1 sleep: pink
+* Stage 2 sleep: aqua/turquoise
+* Stage 3/4 sleep: blue
+* REM sleep: green
 
 ## Input
 
@@ -167,7 +213,7 @@ the .EDF file header.
    * Description
     Alternative filename to use in place of the default naming convention and path location used when saving results.  
    * Supported keys
-      * `plot`: Full path for hypnodensity image file.
+      * `plot`: Full path for hypnodensity image file
       * `hypnodensity`: Full path for hypnodensity output text file
       * `hypnogram`: Full path for hypnogram output text file
       * `diagnosis`: Full path for diagnosis output text file

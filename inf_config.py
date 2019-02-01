@@ -1,7 +1,6 @@
 import os
 import numpy as np
 
-
 class AppConfig(object):
 
     def __init__(self):

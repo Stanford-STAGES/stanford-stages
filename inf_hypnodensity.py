@@ -106,10 +106,13 @@ class Hypnodensity(object):
         av = np.divide(av, len(self.hypnodensity))
         return av
 
-    # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+    # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self):
         hypno = self.get_hypnodensity()
-        return np.argmax(hypno, axis=1)
+        hypnogram = np.argmax(hypno, axis=1) # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+        hypnogram[hypnogram==4]=5     # Change 4 to 5 to keep with the conventional REM indicator
+        return hypnogram
+
 
     def get_features(self, modelName, idx):
         selected_features = self.config.narco_prediction_selected_features
@@ -337,9 +340,7 @@ class Hypnodensity(object):
             x = M - meanV[:, np.newaxis]
             sigma = np.linalg.inv(covM)
             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
-
             return np.mean(noise_vec)
-
 
     def run_data(dat, model, root_model_path):
 
