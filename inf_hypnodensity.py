@@ -120,6 +120,7 @@ class Hypnodensity(object):
         X = self.Features.scale_features(X, modelName)
         return X[selected_features].T
 
+    # Use 5 minute sliding window.
     def extract_hjorth(self, x, dim=5 * 60, slide=5 * 60):
 
         # Length of first dimension
@@ -246,8 +247,11 @@ class Hypnodensity(object):
                 del self.channels_used[ch]
 
     def trim(self, ch):
+        # 30 represents the epoch length most often used in standard hypnogram scoring.
         rem = len(self.loaded_channels[ch]) % int(self.fs * 30)
-        self.loaded_channels[ch] = self.loaded_channels[ch][:-rem]
+        # Otherwise, if rem == 0, the following results in an empty array
+        if rem>0:
+            self.loaded_channels[ch] = self.loaded_channels[ch][:-rem]
 
     def loadHeader(self):
         if not self.edf:
@@ -290,7 +294,7 @@ class Hypnodensity(object):
                 s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
                 self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
         else:
-            self.loaded_channels[c] = signal.resample_poly(self.loaded_channels[c],
+            self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch],
                                         self.fs, fs, axis=0, window=('kaiser', 5.0))
 
 
