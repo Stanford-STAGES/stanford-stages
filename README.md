@@ -7,6 +7,11 @@ Automated sleep staging scoring and narcolepsy identification.
 Software requirements and instructions can be found [here](
 https://docs.google.com/document/d/e/2PACX-1vTvin7Gdn7FN9-2NbAQKgnApR6F73en46cTFYosxCMlgFgp3pMqSJgDthaCghrfAGIZ_BoKThb4bHtt/pub).
 
+## Attribution
+
+Please use the following citation when referencing this software.
+
+Stephansen, Jens B., Alexander N. Olesen, Mads Olsen, Aditya Ambati, Eileen B. Leary, Hyatt E. Moore, Oscar Carrillo et al. ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy."](https://www.nature.com/articles/s41467-018-07229-3) Nature communications 9, no. 1 (2018): 5229.
 
 # Initial configuration
 
