@@ -7,6 +7,8 @@ Automated sleep staging scoring and narcolepsy identification.
 Software requirements and instructions can be found [here](
 https://docs.google.com/document/d/e/2PACX-1vTvin7Gdn7FN9-2NbAQKgnApR6F73en46cTFYosxCMlgFgp3pMqSJgDthaCghrfAGIZ_BoKThb4bHtt/pub).
 
+**NOTE**: The currently supported version of Python is >= 3.6. Previous versions of Python have been shown to yield erroneous results. We are actively looking into this issue.
+
 ## Attribution
 
 Please use the following citation when referencing this software.
