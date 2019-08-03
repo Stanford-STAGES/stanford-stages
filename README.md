@@ -191,7 +191,7 @@ The keys for these parameters, and their corresponding definitions are as follow
 
 * `channel_indices`
    * Description
-    Assigns channel indices corresponding to the central, occipital, occular, and chin EMG. One or two EEG channels may be assigned
+    Assigns channel indices corresponding to the central, occipital, ocular, and chin EMG. One or two EEG channels may be assigned
 to the central and occipital categories.  Both left and right EOG channels are required for the corresponding occular category, and one channel is required for the chin EMG.  In the event that two channels are presented for an EEG category (central or occipital), a quality metric is calculated
 for each channel, and the optimal channel is selected for use.  Channel indices are 0 based and correspond to the channel labels list provided in
 the .EDF file header.
