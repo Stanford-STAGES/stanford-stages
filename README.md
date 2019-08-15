@@ -9,23 +9,6 @@ https://docs.google.com/document/d/e/2PACX-1vTvin7Gdn7FN9-2NbAQKgnApR6F73en46cTF
 
 **NOTE**: The currently supported version of Python is >= 3.6. Previous versions of Python have been shown to yield erroneous results. We are actively looking into this issue.
 
-## Attribution
-
-Please use the following citation when referencing this software.
-
-Jens B. Stephansen, Alexander N. Olesen, Mads Olsen, Aditya Ambati, Eileen B. Leary, Hyatt E. Moore, Oscar Carrillo et al. ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy."](https://www.nature.com/articles/s41467-018-07229-3). Nature Communications 9, Article number:5229 (2018).
-
-```
-@article{Stephansen2018,
-author = {Stephansen, Jens B and Olesen, Alexander N and Olsen, Mads and Ambati, Aditya and Leary, Eileen B and Moore, Hyatt E and Carrillo, Oscar and Lin, Ling and Han, Fang and Yan, Han and Sun, Yun L and Dauvilliers, Yves and Scholz, Sabine and Barateau, Lucie and Hogl, Birgit and Stefani, Ambra and Hong, Seung Chul and Kim, Tae Won and Pizza, Fabio and Plazzi, Giuseppe and Vandi, Stefano and Antelmi, Elena and Perrin, Dimitri and Kuna, Samuel T and Schweitzer, Paula K and Kushida, Clete and Peppard, Paul E and Sorensen, Helge B. D. and Jennum, Poul and Mignot, Emmanuel},
-doi = {10.1038/s41467-018-07229-3},
-journal = {Nature Communications},
-number = {5229},
-title = {{Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy}},
-volume = {9},
-year = {2018}
-}
-```
 
 # Initial configuration
 
@@ -236,3 +219,29 @@ the .EDF file header.
       * `hypnodensity`: Full path for hypnodensity output text file
       * `hypnogram`: Full path for hypnogram output text file
       * `diagnosis`: Full path for diagnosis output text file
+
+## Licensing and Attribution
+
+This software is licensed under the Creative Commons CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/).  
+
+Include the following citation when attributing use of this software:
+
+Jens B. Stephansen, Alexander N. Olesen, Mads Olsen, Aditya Ambati, Eileen B. Leary, Hyatt E. Moore, Oscar Carrillo et al. ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy."](https://www.nature.com/articles/s41467-018-07229-3). Nature Communications 9, Article number:5229 (2018).
+
+## Academic citation
+
+Please use the following citation when referencing this software:
+
+Jens B. Stephansen, Alexander N. Olesen, Mads Olsen, Aditya Ambati, Eileen B. Leary, Hyatt E. Moore, Oscar Carrillo et al. ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy."](https://www.nature.com/articles/s41467-018-07229-3). Nature Communications 9, Article number:5229 (2018).
+
+```
+@article{Stephansen2018,
+author = {Stephansen, Jens B and Olesen, Alexander N and Olsen, Mads and Ambati, Aditya and Leary, Eileen B and Moore, Hyatt E and Carrillo, Oscar and Lin, Ling and Han, Fang and Yan, Han and Sun, Yun L and Dauvilliers, Yves and Scholz, Sabine and Barateau, Lucie and Hogl, Birgit and Stefani, Ambra and Hong, Seung Chul and Kim, Tae Won and Pizza, Fabio and Plazzi, Giuseppe and Vandi, Stefano and Antelmi, Elena and Perrin, Dimitri and Kuna, Samuel T and Schweitzer, Paula K and Kushida, Clete and Peppard, Paul E and Sorensen, Helge B. D. and Jennum, Poul and Mignot, Emmanuel},
+doi = {10.1038/s41467-018-07229-3},
+journal = {Nature Communications},
+number = {5229},
+title = {{Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy}},
+volume = {9},
+year = {2018}
+}
+```
