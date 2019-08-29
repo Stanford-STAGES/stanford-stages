@@ -207,7 +207,7 @@ class Hypnodensity(object):
 
         # Needs double checking as magic numbers are problematic here and will vary based on configuration settings.  @hyatt 11/12/2018
         # Currently, this is not supported as an input json parameter, but will need to adjust accordingly if this changes.
-        # Note: This extracts after the lightsOff epoch and before lightsOn epoch as python is 0-based.
+        # Note: This extracts after the lightsOff epoch and before lightsOn epoch as python is 0-based, and assumes a segsize of 60.
         if isinstance(self.lightsOff, int):
             self.encodedD = self.encodedD[:,
                             4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]

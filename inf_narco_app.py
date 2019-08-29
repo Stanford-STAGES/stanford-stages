@@ -102,7 +102,6 @@ def main(edfFilename,
     narcoApp.eval_hypnodensity()
 
 
-
     if hypnoConfig['show']['hypnogram']:
         print("Hypnogram:")
         hypnogram = narcoApp.get_hypnogram()
