@@ -24,32 +24,40 @@ from scipy.fftpack import fft, ifft, irfft, fftshift
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
-
 # import pdb
+
 
 def softmax(x):
     e_x = np.exp(x)
     div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
     return np.divide(e_x, div)
 
+
+def mob(b):
+    diff = np.diff(b, axis=0)
+    var = np.var(diff, axis=0)
+
+    return np.sqrt(np.divide(var, np.var(b, axis=0)))
+
+
 class Hypnodensity(object):
 
-    def __init__(self, appConfig):
-        self.config = appConfig
+    def __init__(self, app_config):
+        self.config = app_config
         self.hypnodensity = list()
-        self.Features = HypnodensityFeatures(appConfig)
-        self.CCsize = appConfig.CCsize
+        self.Features = HypnodensityFeatures(app_config)
+        self.CCsize = app_config.CCsize
 
-        self.channels = appConfig.channels
-        self.channels_used = appConfig.channels_used
-        self.loaded_channels = appConfig.loaded_channels
-        self.edf_pathname = appConfig.edf_path
+        self.channels = app_config.channels
+        self.channels_used = app_config.channels_used
+        self.loaded_channels = app_config.loaded_channels
+        self.edf_pathname = app_config.edf_path
         self.encodedD = []
-        self.fs = int(appConfig.fs)
-        self.fsH = appConfig.fsH
-        self.fsL = appConfig.fsL
-        self.lightsOff = appConfig.lightsOff
-        self.lightsOn = appConfig.lightsOn
+        self.fs = int(app_config.fs)
+        self.fsH = app_config.fsH
+        self.fsL = app_config.fsL
+        self.lightsOff = app_config.lightsOff
+        self.lightsOn = app_config.lightsOn
 
         self.edf = []  # pyedflib.EdfFileReader
 
@@ -60,7 +68,7 @@ class Hypnodensity(object):
         h = Path(self.edf_pathname)
         h = Path(h.with_suffix('.hypno_pkl'))
 
-        if (p.exists()):
+        if p.exists():
 
             myprint('Loading previously saved encoded data')
             with p.open('rb') as fp:
@@ -84,7 +92,7 @@ class Hypnodensity(object):
                 pickle.dump(self.encodedD, fp)
                 myprint("pickling done")
 
-        if (h.exists()):
+        if h.exists():
             myprint('Loading previously saved hypnodensity')
             with h.open('rb') as fp:
                 self.hypnodensity = pickle.load(fp)
@@ -113,12 +121,12 @@ class Hypnodensity(object):
         hypnogram[hypnogram==4]=5     # Change 4 to 5 to keep with the conventional REM indicator
         return hypnogram
 
-
-    def get_features(self, modelName, idx):
+    def get_features(self, model_name, idx):
         selected_features = self.config.narco_prediction_selected_features
         X = self.Features.extract(self.hypnodensity[idx])
-        X = self.Features.scale_features(X, modelName)
+        X = self.Features.scale_features(X, model_name)
         return X[selected_features].T
+
 
     # Use 5 minute sliding window.
     def extract_hjorth(self, x, dim=5 * 60, slide=5 * 60):
@@ -148,12 +156,6 @@ class Hypnodensity(object):
         hjorth = np.array([activity, complexity, mobility])
         hjorth = np.log(hjorth + np.finfo(float).eps)
         return hjorth
-
-    def mob(self, B):
-        diff = np.diff(B, axis=0)
-        var = np.var(diff, axis=0)
-
-        return np.sqrt(np.divide(var, np.var(B, axis=0)))
 
     def encoding(self):
 
