@@ -259,50 +259,20 @@ class NarcoApp(object):
         self.eval_hypnodensity()
         self.eval_narcolepsy()
 
+
 if __name__ == '__main__':
     outputFormat = 'json'
 
     if sys.argv[1:]:  # if there are at least three arguments (two beyond [0])
 
-        # Random 'demo' option is no longer supported.  Demo.edf file has been removed.  2/1/2019 @hyatt
-        if sys.argv[1] == 'demo':
+        edfFile = sys.argv[1]
 
-            # print results
-            results = {}
-
-            randomTest = sys.argv[2] == "random"
-            if randomTest:
-                random.seed()
-                ml_pred = random.triangular(0.0, 0.001, 0.95)
-            else:
-                ml_pred = 0.001
-
-            ml_threshold = 0.5
-            ml_result = ml_pred >= ml_threshold
-
-            edfObj = edfClass(filename="demo.edf");
-            results["machine_learning"] = (ml_result, ml_pred, ml_threshold)
-            results["reml"] = edfObj.testREMLatency(randomTest)
-            results["soremp"] = edfObj.testSOREMPs(randomTest)
-            results["nrem"] = edfObj.testNREMFragmentation(randomTest)
-            results["pwakes"] = edfObj.testPWakes(randomTest)
-
-            results["hypnogram"] = [1, 2, 3, 4, 5, 0, 1, 2, 3]
-            results["hypnodensity_image"] = 'tmp.png'
-            print(json.dumps(results))
-
-        else:
-
-            edfFile = sys.argv[1]
-
-            # For hard coding/bypassing json input argument, uncomment the following:
-            # jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
-            jsonObj = json.loads(sys.argv[2])
-            try:
-                main(edfFile, jsonObj)
-            except OSError as oserr:
-                print("OSError:", oserr)
-
-
+        # For hard coding/bypassing json input argument, uncomment the following:
+        # jsonObj = json.loads('{"channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9}, "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true, "hypnogram":true}}')
+        jsonObj = json.loads(sys.argv[2])
+        try:
+            main(edfFile, jsonObj)
+        except OSError as oserr:
+            print("OSError:", oserr)
     else:
         print(sys.argv[0], 'requires two arguments when run as a script')
