@@ -21,8 +21,8 @@ class SCModel(object):
 
         if ac_config.lstm:
             self._initial_state = tf.placeholder_with_default(
-                tf.zeros([batch_size_int, ac_config.num_hidden * 2], dtype=tf.float32), [None, ac_config.num_hidden * 2],
-                name='InitialState')
+                tf.zeros([batch_size_int, ac_config.num_hidden * 2], dtype=tf.float32),
+                [None, ac_config.num_hidden * 2], name='InitialState')
 
         # Layer in
         with tf.variable_scope('input_hidden') as scope:
@@ -89,7 +89,7 @@ class SCModel(object):
         self._predict = tf.argmax(self._softmax, 1)
         self._correct = tf.equal(tf.argmax(logits, 1), tf.argmax(self._targets, 1))
         self._accuracy = tf.reduce_mean(tf.cast(self._correct, tf.float32))
-        self._confidence = tf.reduce_sum(tf.multiply(self._softmax, self._targets), 1);
+        self._confidence = tf.reduce_sum(tf.multiply(self._softmax, self._targets), 1)
         self._baseline = (tf.reduce_mean(self._targets, 0))
 
         if ac_config.lstm:

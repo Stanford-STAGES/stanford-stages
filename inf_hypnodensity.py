@@ -10,6 +10,7 @@ Created on Wed Jul 12 23:58:10 2017
 import itertools  # for extracting feature combinations
 import os  # for opening os files for pickle.
 import pickle
+import h5py   # Adding h5py support :) - requiring h5py support :(
 from pathlib import Path
 
 import skimage
@@ -62,17 +63,27 @@ class Hypnodensity(object):
         self.edf = []  # pyedflib.EdfFileReader
 
     def evaluate(self):
-        p = Path(self.edf_pathname)
-        p = Path(p.with_suffix('.pkl'))
 
         h = Path(self.edf_pathname)
         h = Path(h.with_suffix('.hypno_pkl'))
 
-        if p.exists():
+        p = ''
+        in_a_pickle = False
+
+        if self.config.saveEncoding:
+            p = Path(self.config.encodeFilename)
+            in_a_pickle = p.suffix != '.h5'  #  p.suffix == '.pkl'
+
+        if isinstance(p, Path) and p.exists():
 
             myprint('Loading previously saved encoded data')
-            with p.open('rb') as fp:
-                self.encodedD = pickle.load(fp)
+            if in_a_pickle:
+                with p.open('rb') as fp:
+                    self.encodedD = pickle.load(fp)
+            else:
+                with h5py.File(p, 'r') as fp:
+                    self.encodedD = fp['encodedD']
+
         else:
             myprint('Load EDF')
             self.loadEDF()
@@ -81,28 +92,34 @@ class Hypnodensity(object):
             self.psg_noise_level()
 
             self.filtering()
-
             print('filtering done')
 
             print('Encode')
             self.encoding()
 
-            # pickle our file
-            with p.open('wb') as fp:
-                pickle.dump(self.encodedD, fp)
-                myprint("pickling done")
+            if self.config.saveEncoding:
+                if in_a_pickle:
+                    with p.open('wb') as fp:
+                        pickle.dump(self.encodedD, fp)
+                        myprint("pickling done")
+                else:
+                    with h5py.File(p, 'w') as fp:
+                        fp['encodedD'] = self.encodedD
+                        myprint(".h5 exporting done")
 
-        if h.exists():
-            myprint('Loading previously saved hypnodensity')
-            with h.open('rb') as fp:
-                self.hypnodensity = pickle.load(fp)
-        else:
-            myprint('Score data')
-            self.score_data()
-            # pickle our file
-            with h.open('wb') as fp:
-                pickle.dump(self.hypnodensity, fp)
-                myprint("Hypnodensity pickled")
+        # Make sure we are not just encoding the file (e.g. for future use)
+        if not self.config.encodeOnly:
+            if h.exists():
+                myprint('Loading previously saved hypnodensity')
+                with h.open('rb') as fp:
+                    self.hypnodensity = pickle.load(fp)
+            else:
+                myprint('Score data')
+                self.score_data()
+                # pickle our file
+                with h.open('wb') as fp:
+                    pickle.dump(self.hypnodensity, fp)
+                    myprint("Hypnodensity pickled")
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
     def get_hypnodensity(self):
@@ -118,14 +135,14 @@ class Hypnodensity(object):
     def get_hypnogram(self):
         hypno = self.get_hypnodensity()
         hypnogram = np.argmax(hypno, axis=1) # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
-        hypnogram[hypnogram==4]=5     # Change 4 to 5 to keep with the conventional REM indicator
+        hypnogram[hypnogram == 4] = 5     # Change 4 to 5 to keep with the conventional REM indicator
         return hypnogram
 
     def get_features(self, model_name, idx):
         selected_features = self.config.narco_prediction_selected_features
-        X = self.Features.extract(self.hypnodensity[idx])
-        X = self.Features.scale_features(X, model_name)
-        return X[selected_features].T
+        x = self.Features.extract(self.hypnodensity[idx])
+        x = self.Features.scale_features(x, model_name)
+        return x[selected_features].T
 
 
     # Use 5 minute sliding window.
@@ -281,25 +298,26 @@ class Hypnodensity(object):
                         dtype=np.float32)
 
     def resampling(self, ch, fs):
-        myprint("original samplerate = ", fs);
+        myprint("original samplerate = ", fs)
         myprint("resampling to ", self.fs)
-        if fs==500 or fs==200:
+        if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                 0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
                 0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
                 -0.0208207236911009, -0.0175636017706537],
                 [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
                 -0.050624178425469]]  # from matlab
-            if fs==500:
+            if fs == 500:
                 s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
-                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
-            elif fs==200:
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
+                                                           zero_phase=False)
+            elif fs == 200:
                 s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
-                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
+                self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
+                                                           zero_phase=False)
         else:
-            self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch],
-                                        self.fs, fs, axis=0, window=('kaiser', 5.0))
-
+            self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
+                                                            window=('kaiser', 5.0))
 
     def psg_noise_level(self):
 
@@ -323,7 +341,6 @@ class Hypnodensity(object):
                 occipitals_idx = 1
                 unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
-
 
     def get_loudest_channel(self, channelTags, meanV, covM):
         noise = np.zeros(len(channelTags))

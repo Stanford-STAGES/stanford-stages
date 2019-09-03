@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+
 class AppConfig(object):
 
     def __init__(self):
@@ -26,15 +27,17 @@ class AppConfig(object):
 
         self.channels = ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
 
-        # Size of cross correlation in seconds - so in samples this will be sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
+        # Size of cross correlation in seconds - so in samples this will be
+        # sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
         self.CCsize = {'C3':   2, 'C4':   2,  'O1':   2, 'O2':   2,
                        'EOG-L':4, 'EOG-R':4,
                        'EMG':  0.4,
                        'A1':   [], 'A2':   [],
                        }
-        #self.CCsize = dict(zip(self.channels,
+
+        # self.CCsize = dict(zip(self.channels,
         #                [2,2,2,2,4,4,0.4,[],[]]))
-        self.channels_used =   dict.fromkeys(self.channels)
+        self.channels_used = dict.fromkeys(self.channels)
         self.loaded_channels = dict.fromkeys(self.channels)
 
         self.psg_noise_file_pathname = './ml/noiseM.mat'
@@ -52,14 +55,13 @@ class AppConfig(object):
         self.narco_classifier_path = './ml/gp'
 
         self.narco_prediction_num_folds = 5 # for the gp narco classifier
-        self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560,
-          0.89625522, 0.88085868, 0.89474061, 0.87774597,
-          0.87615981, 0.88391175, 0.89158020, 0.88084675,
-          0.89320215, 0.87923673, 0.87615981, 0.88850328]
+        self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
+                                        0.89474061, 0.87774597, 0.87615981, 0.88391175, 0.89158020, 0.88084675,
+                                        0.89320215, 0.87923673, 0.87615981, 0.88850328]
 
-        self.narco_prediction_selected_features = [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147, 149, 166, 196, 201, 202,
-                                  220, 244, 245, 261, 276, 289, 296, 299, 390, 405, 450, 467, 468, 470, 474, 476, 477]
-
+        self.narco_prediction_selected_features = [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147,
+                                                   149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296, 299, 390,
+                                                   405, 450, 467, 468, 470, 474, 476, 477]
 
 
 # Define Config
@@ -108,6 +110,7 @@ class Config(object):
             return os.path.join(self.hypnodensity_model_dir, 'model.ckpt')
         else:
             return os.path.join(self.hypnodensity_model_dir, 'model.ckpt-%.0f' % ckpt)
+
 
 # Now we can pass Config to ACConfig for construction; inheritence.
 class ACConfig(Config):

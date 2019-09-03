@@ -9,6 +9,7 @@ import json  # for command line interface input and output.
 import os
 import sys
 import warnings
+from asyncore import file_dispatcher
 from datetime import datetime
 # import pdb
 import tensorflow as tf
@@ -81,16 +82,25 @@ def main(edf_filename,
     hyp['save']['hypnogram'] = True
     hyp['save']['hypnodensity'] = True
     hyp['save']['diagnosis'] = True
+    hyp['save']['encoding'] = True
 
     hyp['filename']['plot'] = change_file_extension(edf_filename, '.hypnodensity.png')
     hyp['filename']['hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(edf_filename, '.hypnogram.txt')
     hyp['filename']['diagnosis'] = change_file_extension(edf_filename, '.diagnosis.txt')
+    hyp['filename']['encoding'] = change_file_extension(edf_filename, '.pkl')
+    # hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
 
     hyp['save'].update(config_input.get('save', {}))
     hyp['show'].update(config_input.get('show', {}))
 
     hypno_config = hyp
+
+    app_config.saveEncoding = hyp['save']['encoding']
+    app_config.encodeFilename = hyp['filename']['encoding']
+    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['show']['hypnodensity'] or hyp['save']['hypnogram'] or
+                                 hyp['save']['hypnodensity'] or hyp['show']['diagnosis'] or hyp['save']['diagnosis'] or
+                                 hyp['show']['plot'] or hyp['save']['plot'])
 
     narco_app = NarcoApp(app_config)
 
@@ -103,6 +113,7 @@ def main(edf_filename,
         np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
         print(hypnogram)
 
+    # This is the text portion
     if hypno_config['save']['hypnogram']:
         narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram'])
 
@@ -121,8 +132,9 @@ def main(edf_filename,
     if hypno_config['save']['diagnosis']:
         narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
 
-    render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
-                        save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
+    if not app_config.encodeOnly:
+        render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
+                            save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
 
 
 def change_file_extension(fullname, new_extension):
@@ -169,13 +181,8 @@ class NarcoApp(object):
         self.edf_path = app_config.edf_path  # full filename of an .EDF to use for header information.  A template .edf
 
         self.Hypnodensity = Hypnodensity(app_config)
-
         self.models_used = app_config.models_used
-
-        self.edfeatureInd = []
-        self.narco_features = []
         self.narcolepsy_probability = []
-        # self.extract_features = ExtractFeatures(appConfig)  <-- now in Hypnodensity
 
     def get_diagnosis(self):
         prediction = self.narcolepsy_probability
