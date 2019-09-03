@@ -93,6 +93,7 @@ def main(edf_filename,
 
     hyp['save'].update(config_input.get('save', {}))
     hyp['show'].update(config_input.get('show', {}))
+    hyp['filename'].update(config_input.get('filename', {}))
 
     hypno_config = hyp
 
