@@ -10,9 +10,9 @@ Created on Wed Jul 12 23:58:10 2017
 import itertools  # for extracting feature combinations
 import os  # for opening os files for pickle.
 import pickle
-import h5py   # Adding h5py support :) - requiring h5py support :(
+import h5py  # Adding h5py support :) - requiring h5py support :(
 from pathlib import Path
-
+import time  # for auditing code speed.
 import skimage
 import numpy as np
 import pyedflib
@@ -25,20 +25,9 @@ from scipy.fftpack import fft, ifft, irfft, fftshift
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
+
+
 # import pdb
-
-
-def softmax(x):
-    e_x = np.exp(x)
-    div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
-    return np.divide(e_x, div)
-
-
-def mob(b):
-    diff = np.diff(b, axis=0)
-    var = np.var(diff, axis=0)
-
-    return np.sqrt(np.divide(var, np.var(b, axis=0)))
 
 
 class Hypnodensity(object):
@@ -62,20 +51,36 @@ class Hypnodensity(object):
 
         self.edf = []  # pyedflib.EdfFileReader
 
-    def evaluate(self):
+    def audit(self, method_to_audit, audit_label, *args):
+        start_time = time.time()
+        if len(args):
+            method_to_audit(args)
+        else:
+            method_to_audit()
+        elapsed_time = time.time() - start_time
 
-        h = Path(self.edf_pathname)
-        h = Path(h.with_suffix('.hypno_pkl'))
+        with Path(self.config.filename['audit']).open('a') as fp:
+            audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
+            fp.write(audit_str)
 
-        p = ''
-        in_a_pickle = False
+    def export_encoded_data(self, p=None):
+        if isinstance(p, Path):
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            if in_a_pickle:
+                with p.open('wb') as fp:
+                    pickle.dump(self.encodedD, fp)
+                myprint("pickling done")
+            else:
+                with h5py.File(p, 'w') as fp:
+                    fp['encodedD'] = self.encodedD
+                myprint(".h5 exporting done")
+            return True
+        else:
+            return False
 
-        if self.config.saveEncoding:
-            p = Path(self.config.encodeFilename)
-            in_a_pickle = p.suffix != '.h5'  #  p.suffix == '.pkl'
-
+    def import_encoded_data(self, p=None):
         if isinstance(p, Path) and p.exists():
-
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
             myprint('Loading previously saved encoded data')
             if in_a_pickle:
                 with p.open('rb') as fp:
@@ -83,31 +88,58 @@ class Hypnodensity(object):
             else:
                 with h5py.File(p, 'r') as fp:
                     self.encodedD = fp['encodedD']
-
+            return True
         else:
+            return False
+
+    def evaluate(self):
+        # Determine if we are caching and/or have cached results
+        h = Path(self.edf_pathname)
+        h = Path(h.with_suffix('.hypno_pkl'))
+        p = ''
+        in_a_pickle = False
+        if self.config.saveEncoding:
+            p = Path(self.config.encodeFilename)
+
+        # Skip loading encoded data if we are doing an audit
+        if self.config.filename['audit'] is not None:
+            self.audit(self.loadEDF, 'Load EDF')
+            self.audit(self.psg_noise_level, 'Calculating noise levels')
+            self.audit(self.filtering, 'Channel filter')
+            self.audit(self.encoding, 'Encoding')
+            if self.config.saveEncoding:
+                if p is not None:
+                    self.audit(self.export_encoded_data, 'Export encoding', p)
+                    self.audit(self.import_encoded_data, 'Import encoding', p)
+                if self.config.h5_encoding is not None:
+                    self.audit(self.export_encoded_data, '.h5 export encoding',
+                               Path(self.config.filename['h5_encoding']))
+                    self.audit(self.import_encoded_data, '.h5 import encoding',
+                               Path(self.config.filename['h5_encoding']))
+                if self.config.pkl_encoding is not None:
+                    self.audit(self.export_encoded_data, '.pkl export encoding',
+                               Path(self.config.filename['pkl_encoding']))
+                    self.audit(self.import_encoded_data, '.pkl import encoding',
+                               Path(self.config.filename['pkl_encoding']))
+
+        # Otherwise go ahead and try to import the data
+        elif not self.import_encoded_data(p):
+            # and if you can't then go ahead and load it all
             myprint('Load EDF')
             self.loadEDF()
-
             myprint('Load noise level')
             self.psg_noise_level()
-
+            print('Filtering channels')
             self.filtering()
-            print('filtering done')
-
-            print('Encode')
+            print('Encoding')
             self.encoding()
-
+            print('Encoding done')
             if self.config.saveEncoding:
-                if in_a_pickle:
-                    with p.open('wb') as fp:
-                        pickle.dump(self.encodedD, fp)
-                        myprint("pickling done")
-                else:
-                    with h5py.File(p, 'w') as fp:
-                        fp['encodedD'] = self.encodedD
-                        myprint(".h5 exporting done")
+                self.export_encoded_data(p)
 
-        # Make sure we are not just encoding the file (e.g. for future use)
+
+        # If we are just encoding the file for future use, then we don't want to spend time running the models right
+        # now and can skip this part.
         if not self.config.encodeOnly:
             if h.exists():
                 myprint('Loading previously saved hypnodensity')
@@ -134,8 +166,8 @@ class Hypnodensity(object):
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self):
         hypno = self.get_hypnodensity()
-        hypnogram = np.argmax(hypno, axis=1) # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
-        hypnogram[hypnogram == 4] = 5     # Change 4 to 5 to keep with the conventional REM indicator
+        hypnogram = np.argmax(hypno, axis=1)  # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+        hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
         return hypnogram
 
     def get_features(self, model_name, idx):
@@ -143,36 +175,6 @@ class Hypnodensity(object):
         x = self.Features.extract(self.hypnodensity[idx])
         x = self.Features.scale_features(x, model_name)
         return x[selected_features].T
-
-
-    # Use 5 minute sliding window.
-    def extract_hjorth(self, x, dim=5 * 60, slide=5 * 60):
-
-        # Length of first dimension
-        dim = dim * self.fs
-
-        # Overlap of segments in samples
-        slide = slide * self.fs
-
-        # Creates 2D array of overlapping segments
-        D = skimage.util.view_as_windows(x, dim, dim).T
-
-        # Extract Hjorth params for each segment
-        dD = np.diff(D, 1, axis=0)
-        ddD = np.diff(dD, 1, axis=0)
-        mD2 = np.mean(D ** 2, axis=0)
-        mdD2 = np.mean(dD ** 2, axis=0)
-        mddD2 = np.mean(ddD ** 2, axis=0)
-
-        top = np.sqrt(np.divide(mddD2, mdD2))
-
-        mobility = np.sqrt(np.divide(mdD2, mD2))
-        activity = mD2
-        complexity = np.divide(top, mobility)
-
-        hjorth = np.array([activity, complexity, mobility])
-        hjorth = np.log(hjorth + np.finfo(float).eps)
-        return hjorth
 
     def encoding(self):
 
@@ -211,12 +213,13 @@ class Hypnodensity(object):
         count = -1
         enc = []
 
-        for c in self.channels_used: # Central, Occipital, EOG-L, EOG-R, chin
+        for c in self.channels_used:  # Central, Occipital, EOG-L, EOG-R, chin
             # append autocorrelations
             enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
 
         # Append eog cross correlation
-        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25, self.fs))
+        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25,
+                               self.fs))
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
@@ -224,12 +227,12 @@ class Hypnodensity(object):
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
         self.encodedD = enc
 
-        # Needs double checking as magic numbers are problematic here and will vary based on configuration settings.  @hyatt 11/12/2018
-        # Currently, this is not supported as an input json parameter, but will need to adjust accordingly if this changes.
-        # Note: This extracts after the lightsOff epoch and before lightsOn epoch as python is 0-based, and assumes a segsize of 60.
-        if isinstance(self.lightsOff, int):
-            self.encodedD = self.encodedD[:,
-                            4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
+        # Needs double checking as magic numbers are problematic here and will vary based on configuration settings.
+        # @hyatt 11/12/2018 Currently, this is not supported as an input json parameter, but will need to adjust
+        # accordingly if this changes. Note: This extracts after the lightsOff epoch and before lightsOn epoch as
+        # python is 0-based, and assumes a segsize of 60.
+        if isinstance(self.lightsOff, int) and isinstance(self.lightsOn, int):
+            self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
 
     def loadEDF(self):
         if not self.edf:
@@ -238,7 +241,7 @@ class Hypnodensity(object):
                 self.edf = pyedflib.EdfReader(self.edf_pathname)
             except OSError as osErr:
                 print("OSError:", "Loading", self.edf_pathname)
-                raise (osErr)
+                raise osErr
 
         for ch in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
             myprint('Loading', ch)
@@ -270,7 +273,7 @@ class Hypnodensity(object):
         # 30 represents the epoch length most often used in standard hypnogram scoring.
         rem = len(self.loaded_channels[ch]) % int(self.fs * 30)
         # Otherwise, if rem == 0, the following results in an empty array
-        if rem>0:
+        if rem > 0:
             self.loaded_channels[ch] = self.loaded_channels[ch][:-rem]
 
     def loadHeader(self):
@@ -302,11 +305,12 @@ class Hypnodensity(object):
         myprint("resampling to ", self.fs)
         if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
-                0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
-                0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
-                -0.0208207236911009, -0.0175636017706537],
-                [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
-                -0.050624178425469]]  # from matlab
+                          0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
+                          0.184663795586300,
+                          0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
+                          -0.0208207236911009, -0.0175636017706537],
+                         [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
+                          -0.050624178425469]]  # from matlab
             if fs == 500:
                 s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
                 self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
@@ -320,31 +324,31 @@ class Hypnodensity(object):
                                                             window=('kaiser', 5.0))
 
     def psg_noise_level(self):
-
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
         # by first checking if there is a channel category 'C4' or 'O2'
         hasC4 = self.channels_used.get('C4')
         hasO2 = self.channels_used.get('O2')
 
+        print(f'Loading noise file: {self.config.psg_noise_file_pathname}\n')
         if hasC4 or hasO2:
             noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
             meanV = noiseM['meanV'].item()  # 0 for Central,    idx_central = 0
-            covM = noiseM['covM'].item()    # 1 for Occipital,  idx_occipital = 1
+            covM = noiseM['covM'].item()  # 1 for Occipital,  idx_occipital = 1
 
             if hasC4:
                 centrals_idx = 0
-                unused_ch = self.get_loudest_channel(['C3','C4'],meanV[centrals_idx], covM[centrals_idx])
+                unused_ch = self.get_loudest_channel(['C3', 'C4'], meanV[centrals_idx], covM[centrals_idx])
                 del self.channels_used[unused_ch]
 
             if hasO2:
                 occipitals_idx = 1
-                unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
+                unused_ch = self.get_loudest_channel(['O1', 'O2'], meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
 
     def get_loudest_channel(self, channelTags, meanV, covM):
         noise = np.zeros(len(channelTags))
-        for [idx,ch] in enumerate(channelTags):
+        for [idx, ch] in enumerate(channelTags):
             noise[idx] = self.channel_noise_level(ch, meanV, covM)
         return channelTags[np.argmax(noise)]
 
@@ -355,9 +359,8 @@ class Hypnodensity(object):
         #         loudest_ch = ch
         # return loudest_ch
 
-    def channel_noise_level(self, channelTag, meanV, covM):
-
-        hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
+    def channel_noise_level(self, channel_tag, meanV, covM):
+        hjorth = Hypnodensity.extract_hjorth(self.loaded_channels[channel_tag], self.fs)
         noise_vec = np.zeros(hjorth.shape[1])
         for k in range(len(noise_vec)):
             M = hjorth[:, k][:, np.newaxis]
@@ -366,19 +369,64 @@ class Hypnodensity(object):
             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
             return np.mean(noise_vec)
 
+    def score_data(self):
+        self.hypnodensity = list()
+        for l in self.config.models_used:
+            hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
+            hyp = Hypnodensity.softmax(hyp)
+            self.hypnodensity.append(hyp)
+
+    @staticmethod
+    def softmax(x):
+        e_x = np.exp(x)
+        div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)
+        return np.divide(e_x, div)
+
+    # Use 5 minute sliding window.
+    @staticmethod
+    def extract_hjorth(x, fs, dim=5 * 60, slide=5 * 60):
+
+        # Length of first dimension
+        dim = dim * fs
+
+        # Overlap of segments in samples
+        slide = slide * fs
+
+        # Creates 2D array of overlapping segments
+        D = skimage.util.view_as_windows(x, dim, dim).T
+
+        # Extract Hjorth params for each segment
+        dD = np.diff(D, 1, axis=0)
+        ddD = np.diff(dD, 1, axis=0)
+        mD2 = np.mean(D ** 2, axis=0)
+        mdD2 = np.mean(dD ** 2, axis=0)
+        mddD2 = np.mean(ddD ** 2, axis=0)
+
+        top = np.sqrt(np.divide(mddD2, mdD2))
+
+        # Mobility
+        # mobil = self.mob(B)
+        # def mob(b):
+        #     diff = np.diff(b, axis=0)
+        #     var = np.var(diff, axis=0)
+        #     return np.sqrt(np.divide(var, np.var(b, axis=0)))
+
+        mobility = np.sqrt(np.divide(mdD2, mD2))
+        activity = mD2
+        complexity = np.divide(top, mobility)
+
+        hjorth = np.array([activity, complexity, mobility])
+        hjorth = np.log(hjorth + np.finfo(float).eps)
+        return hjorth
+
+    @staticmethod
     def run_data(dat, model, root_model_path):
 
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
         hyp = Hypnodensity.run(dat, ac_config)
         return hyp
 
-    def score_data(self):
-        self.hypnodensity = list()
-        for l in self.config.models_used:
-            hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
-            hyp = softmax(hyp)
-            self.hypnodensity.append(hyp)
-
+    @staticmethod
     def segment(dat, ac_config):
 
         # Get integer value for segment size using //
@@ -402,6 +450,7 @@ class Hypnodensity(object):
 
         return dat, Nextra, prediction, num_batches
 
+    @staticmethod
     def run(dat, ac_config):
 
         with tf.Graph().as_default() as g:
@@ -419,7 +468,8 @@ class Hypnodensity(object):
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
-                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) * ac_config.eval_nseg_atonce * ac_config.segsize,:]
+                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1)
+                                 * ac_config.eval_nseg_atonce * ac_config.segsize, :]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
@@ -509,10 +559,10 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         # Nightly SOREMP
 
-        wCount = 0;
-        rCount = 0;
-        rCountR = 0;
-        soremC = 0;
+        wCount = 0
+        rCount = 0
+        rCountR = 0
+        soremC = 0
         for i in range(SL, len(S)):
             if (S[i] == 0) | (S[i] == 1):
                 wCount += 1
@@ -553,7 +603,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-
         features[-24] = self.logmodulus(SL * f)
         features[-23] = self.logmodulus(RL - SL * f)
 
@@ -564,7 +613,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
         features[-18] = np.sqrt(wBout)
 
         ## Find out what features are used:...!
-        features[-17:] = self.logmodulus(self.transitionFeatures(data))
+        features[-17:] = self.logmodulus(self.transition_features(data))
 
         return features
 
@@ -580,9 +629,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         return self.selected
 
-    def logmodulus(self, x):
-        return np.sign(x) * np.log(abs(x) + 1)
-
     def scale_features(self, features, sc_mod='unknown'):
         scaled_features = features
         if len(scaled_features.shape) == 1:
@@ -597,8 +643,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
             except FileNotFoundError as e:
                 print("File not found ", e)
                 print("meanV set to 0 and scaleV set to 1")
-                self.meanV = 0;
-                self.scaleV = 1;
+                self.meanV = 0
+                self.scaleV = 1
 
         scaled_features -= self.meanV
         scaled_features = np.divide(scaled_features, self.scaleV)
@@ -608,16 +654,17 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         return scaled_features
 
-    def transitionFeatures(self, data):
+    @staticmethod
+    def transition_features(data):
         S = np.zeros(data.shape)
         for i in range(5):
             S[:, i] = np.convolve(data[:, i], np.ones(9), mode='same')
 
-        S = softmax(S)
+        S = Hypnodensity.softmax(S)
 
         cumR = np.zeros(S.shape)
-        Th = 0.2;
-        peakTh = 10;
+        Th = 0.2
+        peakTh = 10
         for j in range(5):
             for i in range(len(S)):
                 if S[i - 1, j] > Th:
@@ -627,7 +674,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         for i in range(5):
             d = cumR[:, i]
-            indP = self.find_peaks(cumR[:, i])
+            indP = Hypnodensity.find_peaks(cumR[:, i])
             typeP = np.ones(len(indP)) * i
             if i == 0:
                 peaks = np.concatenate([np.expand_dims(indP, axis=1), np.expand_dims(typeP, axis=1)], axis=1)
@@ -671,7 +718,12 @@ class HypnodensityFeatures(object):  # <-- extract_features
         features = np.concatenate([transitions, nPeaks], axis=0)
         return features
 
-    def find_peaks(self, x):
+    @staticmethod
+    def logmodulus(x):
+        return np.sign(x) * np.log(abs(x) + 1)
+
+    @staticmethod
+    def find_peaks(x):
         peaks = []
         for i in range(1, len(x)):
             if x[i - 1] > x[i]:
@@ -679,11 +731,11 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         return np.asarray(peaks)
 
-    def wavelet_entropy(self, dat):
+    @staticmethod
+    def wavelet_entropy(dat):
         coef, freqs = pywt.cwt(dat, np.arange(1, 60), 'gaus1')
         Eai = np.sum(np.square(np.abs(coef)), axis=1)
         pai = Eai / np.sum(Eai)
 
         WE = -np.sum(np.log(pai) * pai)
-
         return WE

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from pathlib import Path
 
 
 class AppConfig(object):
@@ -40,9 +41,12 @@ class AppConfig(object):
         self.channels_used = dict.fromkeys(self.channels)
         self.loaded_channels = dict.fromkeys(self.channels)
 
-        self.psg_noise_file_pathname = './ml/noiseM.mat'
-        self.hypnodensity_model_root_path = './ml/'
-        self.hypnodensity_scale_path = './ml/scaling/'
+        # Make it easier to run stanford-stages code from other repositories, or scripts in other directories.
+        this_path = Path(__file__).parent.absolute()
+        self.psg_noise_file_pathname = str(this_path.joinpath('ml/noiseM.mat'))
+        self.hypnodensity_model_root_path = str(this_path.joinpath('ml/'))
+        self.hypnodensity_scale_path = str(this_path.joinpath('ml/scaling/'))
+
         # self.hypnodensity_select_features_path = './ml/'
         # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
 

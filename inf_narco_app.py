@@ -89,6 +89,10 @@ def main(edf_filename,
     hyp['filename']['hypnogram'] = change_file_extension(edf_filename, '.hypnogram.txt')
     hyp['filename']['diagnosis'] = change_file_extension(edf_filename, '.diagnosis.txt')
     hyp['filename']['encoding'] = change_file_extension(edf_filename, '.pkl')
+    hyp['filename']['audit'] = None
+    hyp['filename']['pkl_encoding'] = None
+    hyp['filename']['h5_encoding'] = None
+
     # hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
 
     hyp['save'].update(config_input.get('save', {}))
@@ -96,6 +100,13 @@ def main(edf_filename,
     hyp['filename'].update(config_input.get('filename', {}))
 
     hypno_config = hyp
+
+    # Auditing filename is used to identify if audit should be done (None: False) and if so, which file to send audit
+    # data to (filename: True)
+    app_config.filename = hyp['filename']
+    # app_config.auditFilename = hyp['filename']['audit']
+    # app_config.h5_encoding = hyp['filename']['h5_encoding']
+    # app_config.pkl_encoding = hyp['filename']['pkl_encoding']
 
     app_config.saveEncoding = hyp['save']['encoding']
     app_config.encodeFilename = hyp['filename']['encoding']
