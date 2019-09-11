@@ -53,12 +53,8 @@ class Hypnodensity(object):
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
-        if len(args):
-            method_to_audit(args)
-        else:
-            method_to_audit()
+        method_to_audit(*args)
         elapsed_time = time.time() - start_time
-
         with Path(self.config.filename['audit']).open('a') as fp:
             audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
             fp.write(audit_str)
@@ -67,15 +63,18 @@ class Hypnodensity(object):
         if isinstance(p, Path):
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
             if in_a_pickle:
+                print(f"Pickle encode data to: {p}")
                 with p.open('wb') as fp:
                     pickle.dump(self.encodedD, fp)
-                myprint("pickling done")
+                print(f"Encode data pickled to: {p}\n")
             else:
+                print("Not in a pickle!")
                 with h5py.File(p, 'w') as fp:
                     fp['encodedD'] = self.encodedD
                 myprint(".h5 exporting done")
             return True
         else:
+            print('Not an instance of Path')
             return False
 
     def import_encoded_data(self, p=None):
@@ -108,19 +107,18 @@ class Hypnodensity(object):
             self.audit(self.filtering, 'Channel filter')
             self.audit(self.encoding, 'Encoding')
             if self.config.saveEncoding:
-                if p is not None:
-                    self.audit(self.export_encoded_data, 'Export encoding', p)
-                    self.audit(self.import_encoded_data, 'Import encoding', p)
-                if self.config.h5_encoding is not None:
-                    self.audit(self.export_encoded_data, '.h5 export encoding',
-                               Path(self.config.filename['h5_encoding']))
-                    self.audit(self.import_encoded_data, '.h5 import encoding',
-                               Path(self.config.filename['h5_encoding']))
-                if self.config.pkl_encoding is not None:
-                    self.audit(self.export_encoded_data, '.pkl export encoding',
-                               Path(self.config.filename['pkl_encoding']))
-                    self.audit(self.import_encoded_data, '.pkl import encoding',
-                               Path(self.config.filename['pkl_encoding']))
+                if self.config.filename["pkl_encoding"] is not None:
+                    pkl_path = Path(self.config.filename['pkl_encoding'])
+                    self.audit(self.export_encoded_data, 'export encoding as .pkl', pkl_path)
+                    self.audit(self.import_encoded_data, '.pkl import encoding', pkl_path)
+                if self.config.filename["h5_encoding"] is not None:
+                    h5_path = Path(self.config.filename['h5_encoding'])
+                    self.audit(self.export_encoded_data, 'export encoding as .h5', h5_path)
+                    self.audit(self.import_encoded_data, '.h5 import encoding', h5_path)
+                # if p is not None:
+                #     print('Save encoding 1')
+                #     self.audit(self.export_encoded_data, 'Export encoding', p)
+                #     self.audit(self.import_encoded_data, 'Import encoding', p)
 
         # Otherwise go ahead and try to import the data
         elif not self.import_encoded_data(p):
@@ -136,7 +134,6 @@ class Hypnodensity(object):
             print('Encoding done')
             if self.config.saveEncoding:
                 self.export_encoded_data(p)
-
 
         # If we are just encoding the file for future use, then we don't want to spend time running the models right
         # now and can skip this part.
