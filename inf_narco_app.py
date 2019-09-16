@@ -9,20 +9,20 @@ import json  # for command line interface input and output.
 import os
 import sys
 import warnings
-from asyncore import file_dispatcher
+# from asyncore import file_dispatcher
 from datetime import datetime
-# import pdb
-import tensorflow as tf
-import gpflow as gpf
 
+import gpflow as gpf
 # For hypnodensity plotting ...
 import matplotlib.pyplot as plt
 import numpy as np
+# import pdb
+import tensorflow as tf
 from matplotlib.patches import Polygon
 
+from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
 from inf_hypnodensity import \
     Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to inf_hypnodensity.py
-from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 

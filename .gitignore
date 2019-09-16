@@ -9,5 +9,7 @@ Demo.pkl
 
 *.hypno_pkl
 
+ml/ac/
+ml/gp/
 \.idea/
 test_app.sh
