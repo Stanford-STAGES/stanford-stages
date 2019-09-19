@@ -134,6 +134,17 @@ class ACConfig(Config):
         if model_name[6:8] == 'ls':
             segsize = 60
             atonce = 1000
+            atonce = 600 # 173 seconds
+            atonce = 400 # 154 seconds
+            atonce = 200 # 150 seconds
+            atonce = 100 # 110
+            atonce = 50 # 104
+            atonce = 45  # 102
+            atonce = 40 # 101
+            atonce = 30 # 102
+            atonce = 35 # 103
+            # atonce = 10 # 118
+
         else:
             segsize = 20
             atonce = 3000
@@ -146,7 +157,7 @@ class ACConfig(Config):
         if is_training:
             batch_size = 30
         else:
-            batch_size = 1
+            batch_size = 1 # had been 1
 
         scope = 'ac'
         num_features = 1640

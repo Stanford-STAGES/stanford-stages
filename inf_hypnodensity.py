@@ -86,7 +86,7 @@ class Hypnodensity(object):
                     self.encodedD = pickle.load(fp)
             else:
                 with h5py.File(p, 'r') as fp:
-                    self.encodedD = fp['encodedD']
+                    self.encodedD = fp['encodedD'][()]
             return True
         else:
             return False
@@ -107,18 +107,20 @@ class Hypnodensity(object):
             self.audit(self.filtering, 'Channel filter')
             self.audit(self.encoding, 'Encoding')
             if self.config.saveEncoding:
-                if self.config.filename["pkl_encoding"] is not None:
-                    pkl_path = Path(self.config.filename['pkl_encoding'])
-                    self.audit(self.export_encoded_data, 'export encoding as .pkl', pkl_path)
-                    self.audit(self.import_encoded_data, '.pkl import encoding', pkl_path)
                 if self.config.filename["h5_encoding"] is not None:
                     h5_path = Path(self.config.filename['h5_encoding'])
                     self.audit(self.export_encoded_data, 'export encoding as .h5', h5_path)
                     self.audit(self.import_encoded_data, '.h5 import encoding', h5_path)
+                if self.config.filename["pkl_encoding"] is not None:
+                    pkl_path = Path(self.config.filename['pkl_encoding'])
+                    self.audit(self.export_encoded_data, 'export encoding as .pkl', pkl_path)
+                    self.audit(self.import_encoded_data, '.pkl import encoding', pkl_path)
                 # if p is not None:
                 #     print('Save encoding 1')
                 #     self.audit(self.export_encoded_data, 'Export encoding', p)
                 #     self.audit(self.import_encoded_data, 'Import encoding', p)
+            print('Score data!')
+            self.audit(self.score_data,'Score data')
 
         # Otherwise go ahead and try to import the data
         elif not self.import_encoded_data(p):
@@ -455,8 +457,10 @@ class Hypnodensity(object):
             s = tf.train.Saver(tf.global_variables())
 
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
-
-            with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as session:
+            config = tf.ConfigProto(log_device_placement=False)
+            # config.gpu_options.allow_growth = True  # See also: https://www.tensorflow.org/guide/using_gpu
+            #config.gpu_options.per_process_gpu_memory_fraction = 0.4
+            with tf.Session(config=config) as session:
                 ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
 
                 s.restore(session, ckpt.model_checkpoint_path)
