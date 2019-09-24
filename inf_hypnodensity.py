@@ -120,7 +120,7 @@ class Hypnodensity(object):
                 #     self.audit(self.export_encoded_data, 'Export encoding', p)
                 #     self.audit(self.import_encoded_data, 'Import encoding', p)
             print('Score data!')
-            self.audit(self.score_data,'Score data')
+            self.audit(self.score_data,'Generate hypnodensity')
 
         # Otherwise go ahead and try to import the data
         elif not self.import_encoded_data(p):
@@ -305,9 +305,8 @@ class Hypnodensity(object):
         if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                           0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
-                          0.184663795586300,
-                          0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
-                          -0.0208207236911009, -0.0175636017706537],
+                          0.184663795586300,  0.143586518157187, 0.0894912177899215, 0.0376532652007562,
+                          0.0, -0.0186368912579407, -0.0208207236911009, -0.0175636017706537],
                          [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
                           -0.050624178425469]]  # from matlab
             if fs == 500:
@@ -436,6 +435,8 @@ class Hypnodensity(object):
         num_batches = np.int(
             np.ceil(np.divide(dat.shape[2], (ac_config.eval_nseg_atonce * ac_config.segsize), dtype='float')))
 
+        # print(f'\n---------------\ndat.shape[2] = {dat.shape[2]}\nnum_batches = {num_batches}\n--------------------\n')
+
         Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize) % dat.shape[2])
         # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
 
@@ -458,8 +459,10 @@ class Hypnodensity(object):
 
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
             config = tf.ConfigProto(log_device_placement=False)
+            # config = tf.ConfigProto()
+            # config = tf.ConfigProto(log_device_placement=True)  # Seeing log_device_placement=True gives way too much output.
             # config.gpu_options.allow_growth = True  # See also: https://www.tensorflow.org/guide/using_gpu
-            #config.gpu_options.per_process_gpu_memory_fraction = 0.4
+            # config.gpu_options.per_process_gpu_memory_fraction = 1.0
             with tf.Session(config=config) as session:
                 ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
 
