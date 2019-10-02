@@ -21,8 +21,12 @@ import tensorflow as tf
 from matplotlib.patches import Polygon
 
 from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
-from inf_hypnodensity import \
-    Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to inf_hypnodensity.py
+from inf_hypnodensity import Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to
+                                           # inf_hypnodensity.py
+
+# for auditing code speed.
+from pathlib import Path
+import time
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 
@@ -71,6 +75,7 @@ def main(edf_filename,
 
     app_config.lightsOff = config_input.get('lightsOff', [])
     app_config.lightsOn = config_input.get('lightsOn', [])
+    app_config.audit.update(config_input.get('audit',{}))
 
     hyp = {'show': {}, 'save': {}, 'filename': {}}
     hyp['show']['plot'] = False
@@ -85,6 +90,7 @@ def main(edf_filename,
     hyp['save']['encoding'] = True
 
     hyp['filename']['plot'] = change_file_extension(edf_filename, '.hypnodensity.png')
+    hyp['filename']['pkl_hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.pkl')
     hyp['filename']['hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(edf_filename, '.hypnogram.txt')
     hyp['filename']['diagnosis'] = change_file_extension(edf_filename, '.diagnosis.txt')
@@ -109,15 +115,18 @@ def main(edf_filename,
     # app_config.pkl_encoding = hyp['filename']['pkl_encoding']
 
     app_config.saveEncoding = hyp['save']['encoding']
+    app_config.saveHypnodensity = hyp['save']['hypnodensity']
     app_config.encodeFilename = hyp['filename']['encoding']
     app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['show']['hypnodensity'] or hyp['save']['hypnogram'] or
                                  hyp['save']['hypnodensity'] or hyp['show']['diagnosis'] or hyp['save']['diagnosis'] or
                                  hyp['show']['plot'] or hyp['save']['plot'])
 
     narco_app = NarcoApp(app_config)
-
     # narcoApp.eval_all()
     narco_app.eval_hypnodensity()
+
+    if narco_app.config.audit.get('diagnosis', False):
+        narco_app.audit(narco_app.eval_narcolepsy,'Diagnosing...')
 
     if hypno_config['show']['hypnogram']:
         print("Hypnogram:")
@@ -227,6 +236,15 @@ class NarcoApp(object):
 
         hypno = self.get_hypnogram()
         np.savetxt(filename, hypno, delimiter=",", fmt='%i')
+
+    def audit(self, method_to_audit, audit_label, *args):
+        start_time = time.time()
+        method_to_audit(*args)
+        elapsed_time = time.time() - start_time
+        with Path(self.config.filename['audit']).open('a') as fp:
+            audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
+            fp.write(audit_str)
+
 
     def get_narco_gpmodels(self):
         return self.models_used

@@ -19,8 +19,8 @@ import pyedflib
 import pywt  # wavelet entropy
 import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
-import tensorflow as tf
 from scipy.fftpack import fft, ifft, irfft, fftshift
+import tensorflow as tf
 
 from inf_config import ACConfig
 from inf_network import SCModel
@@ -59,6 +59,31 @@ class Hypnodensity(object):
             audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
             fp.write(audit_str)
 
+    def export_hypnodensity(self, p=None):
+        if isinstance(p, Path):
+            with p.open('wb') as fp:
+                pickle.dump(self.hypnodensity, fp)
+                myprint("Hypnodensity pickled")
+            return True
+        else:
+            print('Not an instance of Path')
+            return False
+
+    def import_hypnodensity(self, p=None):
+        if isinstance(p, Path) and p.exists():
+            myprint('Loading previously saved hypnodensity')
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            myprint('Loading previously saved encoded data')
+            if in_a_pickle:
+                with p.open('rb') as fp:
+                    self.hypnodensity = pickle.load(fp)
+            else:
+                with h5py.File(p, 'r') as fp:
+                    self.hypnodensity = fp['hypnodensity'][()]
+            return True
+        else:
+            return False
+
     def export_encoded_data(self, p=None):
         if isinstance(p, Path):
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
@@ -93,15 +118,20 @@ class Hypnodensity(object):
 
     def evaluate(self):
         # Determine if we are caching and/or have cached results
-        h = Path(self.edf_pathname)
-        h = Path(h.with_suffix('.hypno_pkl'))
         p = ''
+        h = ''
         in_a_pickle = False
         if self.config.saveEncoding:
             p = Path(self.config.encodeFilename)
+            h = Path(self.config.filename["pkl_hypnodensity"])
+
+        is_auditing = self.config.filename['audit'] is not None
+        audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
+        audit_encoding = is_auditing and (self.config.filename["h5_encoding"] is not None
+                                          or self.config.filename["pkl_encoding"] is not None)
 
         # Skip loading encoded data if we are doing an audit
-        if self.config.filename['audit'] is not None:
+        if audit_encoding:
             self.audit(self.loadEDF, 'Load EDF')
             self.audit(self.psg_noise_level, 'Calculating noise levels')
             self.audit(self.filtering, 'Channel filter')
@@ -119,8 +149,6 @@ class Hypnodensity(object):
                 #     print('Save encoding 1')
                 #     self.audit(self.export_encoded_data, 'Export encoding', p)
                 #     self.audit(self.import_encoded_data, 'Import encoding', p)
-            print('Score data!')
-            self.audit(self.score_data,'Generate hypnodensity')
 
         # Otherwise go ahead and try to import the data
         elif not self.import_encoded_data(p):
@@ -139,18 +167,16 @@ class Hypnodensity(object):
 
         # If we are just encoding the file for future use, then we don't want to spend time running the models right
         # now and can skip this part.
-        if not self.config.encodeOnly:
-            if h.exists():
-                myprint('Loading previously saved hypnodensity')
-                with h.open('rb') as fp:
-                    self.hypnodensity = pickle.load(fp)
-            else:
-                myprint('Score data')
-                self.score_data()
+        if is_auditing or not self.config.encodeOnly:
+            if audit_hypnodensity or not self.import_hypnodensity(h):
+                print('Score data')
+                if is_auditing:
+                    self.audit(self.score_data, 'Generate hypnodensity')
+                else:
+                    self.score_data()
                 # pickle our file
-                with h.open('wb') as fp:
-                    pickle.dump(self.hypnodensity, fp)
-                    myprint("Hypnodensity pickled")
+                if self.config.saveHypnodensity:
+                    self.export_hypnodensity(h)
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
     def get_hypnodensity(self):
@@ -233,6 +259,7 @@ class Hypnodensity(object):
         if isinstance(self.lightsOff, int) and isinstance(self.lightsOn, int):
             self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
 
+
     def loadEDF(self):
         if not self.edf:
 
@@ -305,7 +332,7 @@ class Hypnodensity(object):
         if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                           0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
-                          0.184663795586300,  0.143586518157187, 0.0894912177899215, 0.0376532652007562,
+                          0.184663795586300, 0.143586518157187, 0.0894912177899215, 0.0376532652007562,
                           0.0, -0.0186368912579407, -0.0208207236911009, -0.0175636017706537],
                          [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
                           -0.050624178425469]]  # from matlab
@@ -473,7 +500,8 @@ class Hypnodensity(object):
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
                     x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1)
-                                 * ac_config.eval_nseg_atonce * ac_config.segsize, :]
+                                                                                  * ac_config.eval_nseg_atonce * ac_config.segsize,
+                        :]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
@@ -678,7 +706,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         for i in range(5):
             d = cumR[:, i]
-            indP = Hypnodensity.find_peaks(cumR[:, i])
+            indP = HypnodensityFeatures.find_peaks(cumR[:, i])
             typeP = np.ones(len(indP)) * i
             if i == 0:
                 peaks = np.concatenate([np.expand_dims(indP, axis=1), np.expand_dims(typeP, axis=1)], axis=1)

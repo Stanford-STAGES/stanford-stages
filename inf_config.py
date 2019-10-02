@@ -26,7 +26,9 @@ class AppConfig(object):
         self.fsH = np.array(0.2,dtype=float)
         self.fsL = np.array(49,dtype=float)
 
-        self.channels = ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
+        # Wrapper hooks for auditing processing time of various parts of the app.
+        self.audit = {'encoding': False, 'hypnodensity': False, 'diagnosis': False}
+        self.channels = ['C3', 'C4', 'O1', 'O2', 'EOG-L', 'EOG-R', 'EMG', 'A1', 'A2']
 
         # Size of cross correlation in seconds - so in samples this will be
         # sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
@@ -47,6 +49,9 @@ class AppConfig(object):
         self.hypnodensity_model_root_path = str(this_path.joinpath('ml/'))
         self.hypnodensity_scale_path = str(this_path.joinpath('ml/scaling/'))
 
+        # Related to classifying narcolepsy from hypnodensity features
+        self.narco_classifier_path = str(this_path.joinpath('ml/gp'))
+
         # self.hypnodensity_select_features_path = './ml/'
         # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
 
@@ -54,9 +59,6 @@ class AppConfig(object):
         self.edf_path = []
         self.lightsOff = []
         self.lightsOn = []
-
-        # Related to classifying narcolepsy from hypnodensity features
-        self.narco_classifier_path = './ml/gp'
 
         self.narco_prediction_num_folds = 5 # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
