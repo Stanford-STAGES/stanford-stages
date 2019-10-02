@@ -482,10 +482,10 @@ class Hypnodensity(object):
 
         with tf.Graph().as_default() as g:
             m = SCModel(ac_config)
-            s = tf.train.Saver(tf.global_variables())
+            s = tf.train.Saver(tf.compat.v1.global_variables())
 
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
-            config = tf.ConfigProto(log_device_placement=False)
+            config = tf.compat.v1.ConfigProto(log_device_placement=False)
             # config = tf.ConfigProto()
             # config = tf.ConfigProto(log_device_placement=True)  # Seeing log_device_placement=True gives way too much output.
             # config.gpu_options.allow_growth = True  # See also: https://www.tensorflow.org/guide/using_gpu
