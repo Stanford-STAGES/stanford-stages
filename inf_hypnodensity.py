@@ -61,9 +61,14 @@ class Hypnodensity(object):
 
     def export_hypnodensity(self, p=None):
         if isinstance(p, Path):
-            with p.open('wb') as fp:
-                pickle.dump(self.hypnodensity, fp)
-                myprint("Hypnodensity pickled")
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            if in_a_pickle:
+                with p.open('wb') as fp:
+                    pickle.dump(self.hypnodensity, fp)
+                    myprint("Hypnodensity pickled")
+            else:
+                with h5py.File(p, 'w') as fp:
+                    fp['hypnodensity'] = self.hypnodensity
             return True
         else:
             print('Not an instance of Path')
@@ -119,11 +124,9 @@ class Hypnodensity(object):
     def evaluate(self):
         # Determine if we are caching and/or have cached results
         p = ''
-        h = ''
         in_a_pickle = False
         if self.config.saveEncoding:
             p = Path(self.config.encodeFilename)
-            h = Path(self.config.filename["pkl_hypnodensity"])
 
         is_auditing = self.config.filename['audit'] is not None
         audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
@@ -176,6 +179,7 @@ class Hypnodensity(object):
                     self.score_data()
                 # pickle our file
                 if self.config.saveHypnodensity:
+                    h = Path(self.config.filename["h5_hypnodensity"])
                     self.export_hypnodensity(h)
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.

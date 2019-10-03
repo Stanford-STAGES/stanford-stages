@@ -91,13 +91,14 @@ def main(edf_filename,
 
     hyp['filename']['plot'] = change_file_extension(edf_filename, '.hypnodensity.png')
     hyp['filename']['pkl_hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.pkl')
+    hyp['filename']['h5_hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.h5')
     hyp['filename']['hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(edf_filename, '.hypnogram.txt')
     hyp['filename']['diagnosis'] = change_file_extension(edf_filename, '.diagnosis.txt')
-    hyp['filename']['encoding'] = change_file_extension(edf_filename, '.pkl')
-    hyp['filename']['audit'] = None
+    hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
     hyp['filename']['pkl_encoding'] = None
     hyp['filename']['h5_encoding'] = None
+    hyp['filename']['audit'] = None
 
     # hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
 
