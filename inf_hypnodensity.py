@@ -171,6 +171,7 @@ class Hypnodensity(object):
         # If we are just encoding the file for future use, then we don't want to spend time running the models right
         # now and can skip this part.
         if is_auditing or not self.config.encodeOnly:
+            h = Path(self.config.filename["h5_hypnodensity"])
             if audit_hypnodensity or not self.import_hypnodensity(h):
                 print('Score data')
                 if is_auditing:
@@ -179,7 +180,6 @@ class Hypnodensity(object):
                     self.score_data()
                 # pickle our file
                 if self.config.saveHypnodensity:
-                    h = Path(self.config.filename["h5_hypnodensity"])
                     self.export_hypnodensity(h)
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
