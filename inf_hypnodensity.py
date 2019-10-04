@@ -21,12 +21,9 @@ import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
 from scipy.fftpack import fft, ifft, irfft, fftshift
 import tensorflow as tf
-
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
-
-
 # import pdb
 
 
@@ -78,7 +75,6 @@ class Hypnodensity(object):
         if isinstance(p, Path) and p.exists():
             myprint('Loading previously saved hypnodensity')
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
-            myprint('Loading previously saved encoded data')
             if in_a_pickle:
                 with p.open('rb') as fp:
                     self.hypnodensity = pickle.load(fp)
@@ -123,64 +119,72 @@ class Hypnodensity(object):
 
     def evaluate(self):
         # Determine if we are caching and/or have cached results
-        p = ''
-        in_a_pickle = False
+        p = None
         if self.config.saveEncoding:
             p = Path(self.config.encodeFilename)
+
+        h = Path(self.config.filename["h5_hypnodensity"])
 
         is_auditing = self.config.filename['audit'] is not None
         audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
         audit_encoding = is_auditing and (self.config.filename["h5_encoding"] is not None
                                           or self.config.filename["pkl_encoding"] is not None)
 
-        # Skip loading encoded data if we are doing an audit
-        if audit_encoding:
-            self.audit(self.loadEDF, 'Load EDF')
-            self.audit(self.psg_noise_level, 'Calculating noise levels')
-            self.audit(self.filtering, 'Channel filter')
-            self.audit(self.encoding, 'Encoding')
-            if self.config.saveEncoding:
-                if self.config.filename["h5_encoding"] is not None:
-                    h5_path = Path(self.config.filename['h5_encoding'])
-                    self.audit(self.export_encoded_data, 'export encoding as .h5', h5_path)
-                    self.audit(self.import_encoded_data, '.h5 import encoding', h5_path)
-                if self.config.filename["pkl_encoding"] is not None:
-                    pkl_path = Path(self.config.filename['pkl_encoding'])
-                    self.audit(self.export_encoded_data, 'export encoding as .pkl', pkl_path)
-                    self.audit(self.import_encoded_data, '.pkl import encoding', pkl_path)
-                # if p is not None:
-                #     print('Save encoding 1')
-                #     self.audit(self.export_encoded_data, 'Export encoding', p)
-                #     self.audit(self.import_encoded_data, 'Import encoding', p)
+        # The goal is to generate the hypnodensity or audit the steps along the way
+        # if audit_hypnodensity -> then don't import_hypnodensity
+        # or if audit_encoding -> then don't bypass the encoding step
+        # or if not self.import_hypnodensity -> then go through the steps to create it as follows
+        if audit_hypnodensity or audit_encoding or not self.import_hypnodensity(h):
 
-        # Otherwise go ahead and try to import the data
-        elif not self.import_encoded_data(p):
-            # and if you can't then go ahead and load it all
-            myprint('Load EDF')
-            self.loadEDF()
-            myprint('Load noise level')
-            self.psg_noise_level()
-            print('Filtering channels')
-            self.filtering()
-            print('Encoding')
-            self.encoding()
-            print('Encoding done')
-            if self.config.saveEncoding:
-                self.export_encoded_data(p)
+            # Go through all the steps if we are doing an audit
+            if audit_encoding:
+                self.audit(self.loadEDF, 'Load EDF')
+                self.audit(self.psg_noise_level, 'Calculating noise levels')
+                self.audit(self.filtering, 'Channel filter')
+                self.audit(self.encoding, 'Encoding')
+                if self.config.saveEncoding:
+                    if self.config.filename["h5_encoding"] is not None:
+                        h5_path = Path(self.config.filename['h5_encoding'])
+                        self.audit(self.export_encoded_data, 'export encoding as .h5', h5_path)
+                        self.audit(self.import_encoded_data, '.h5 import encoding', h5_path)
+                    if self.config.filename["pkl_encoding"] is not None:
+                        pkl_path = Path(self.config.filename['pkl_encoding'])
+                        self.audit(self.export_encoded_data, 'export encoding as .pkl', pkl_path)
+                        self.audit(self.import_encoded_data, '.pkl import encoding', pkl_path)
 
-        # If we are just encoding the file for future use, then we don't want to spend time running the models right
-        # now and can skip this part.
-        if is_auditing or not self.config.encodeOnly:
+            # Otherwise go ahead and try to import the previously encoded data ...
+            elif not self.import_encoded_data(p):
+                self.encode_edf(p)
+
+            # If we are just encoding the file for future use, then we don't want to spend time running the models right
+            # now and can skip this part.  Otherwise if we are auditing or not able to import a cached hypnodensity,
+            # then we want to generate the hypnodensity
             h = Path(self.config.filename["h5_hypnodensity"])
-            if audit_hypnodensity or not self.import_hypnodensity(h):
-                print('Score data')
-                if is_auditing:
+            if audit_hypnodensity or not self.config.encodeOnly or not self.import_hypnodensity(h):
+                print('Calculating hypnodensity')
+                if audit_hypnodensity:
                     self.audit(self.score_data, 'Generate hypnodensity')
                 else:
                     self.score_data()
-                # pickle our file
+                # cache our file
                 if self.config.saveHypnodensity:
                     self.export_hypnodensity(h)
+
+    def encode_edf(self, export_path=None):
+        # and if you can't then go through all the steps to encode it
+        myprint('Load EDF')
+        self.loadEDF()
+        myprint('Load noise level')
+        self.psg_noise_level()
+        print('Filtering channels')
+        self.filtering()
+        print('Encoding')
+        self.encoding()
+        print('Encoding done')
+        if self.config.saveEncoding:
+            if export_path is None:
+               export_path = Path(self.config.encodeFilename)
+            self.export_encoded_data(export_path)
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
     def get_hypnodensity(self):
