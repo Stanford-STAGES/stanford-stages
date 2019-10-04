@@ -52,9 +52,9 @@ class SCModel(object):
             oKeepProb = 1
 
         # Layer hidden
-        with tf.variable_scope('hidden_hidden') as scope:
+        with tf.compat.v1.variable_scope('hidden_hidden') as scope:
             if ac_config.lstm:
-                cell = tf.nn.rnn_cell.BasicLSTMCell(ac_config.num_hidden, forget_bias=1.0, state_is_tuple=True)
+                cell = tf.compat.v1.nn.rnn_cell.BasicLSTMCell(ac_config.num_hidden, forget_bias=1.0, state_is_tuple=True)
                 cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=iKeepProb, output_keep_prob=oKeepProb)
                 initial_state = tf.compat.v1.nn.rnn_cell.LSTMStateTuple(self._initial_state[:, :ac_config.num_hidden],
                                                               self._initial_state[:, ac_config.num_hidden:])
@@ -70,7 +70,7 @@ class SCModel(object):
                 # sc_conv._activation_summary(outputs)
 
         # Layer out
-        with tf.variable_scope('hidden_output') as scope:
+        with tf.compat.v1.variable_scope('hidden_output') as scope:
             outputs = tf.reshape(outputs, [-1, ac_config.num_hidden])
             weights = sc_conv._variable_with_weight_decay('weights', shape=[ac_config.num_hidden, ac_config.num_classes],
                                                           stddev=0.04, wd=0.00001)
@@ -113,7 +113,7 @@ class SCModel(object):
 
     def intelligent_cost(self, logits):
         logits = tf.clip_by_value(logits, -1e10, 1e+10)
-        cross_ent = tf.compat.v1.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self._targets)
+        cross_ent = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=self._targets)
         # cross_ent = tf.mul(cross_ent, self._mask)
         cross_ent = tf.reduce_mean(cross_ent)  # / tf.reduce_sum(self._mask)
         tf.compat.v1.add_to_collection('losses', cross_ent)

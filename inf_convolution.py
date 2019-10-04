@@ -59,11 +59,12 @@ def _variable_on_cpu(name, shape, initializer):
 
 
 def _variable_with_weight_decay(name, shape, stddev, wd):
-    dtype = tf.float32
+    # dtype = tf.float32 --> deprecated from constructor pass: ref:
+    # https://www.tensorflow.org/api_docs/python/tf/compat/v1/truncated_normal_initializer
     var = _variable_on_cpu(
         name,
         shape,
-        tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+        tf.compat.v1.truncated_normal_initializer(stddev=stddev))
     if wd is not None:
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
         tf.compat.v1.add_to_collection('losses', weight_decay)
