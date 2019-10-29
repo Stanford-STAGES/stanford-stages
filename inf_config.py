@@ -50,7 +50,7 @@ class AppConfig(object):
         self.hypnodensity_scale_path = str(this_path.joinpath('ml/scaling/'))
 
         # Related to classifying narcolepsy from hypnodensity features
-        self.narco_classifier_path = str(this_path.joinpath('ml/gp'))
+        self.narco_classifier_path = str(this_path.joinpath('ml/gp/'))
 
         # self.hypnodensity_select_features_path = './ml/'
         # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'

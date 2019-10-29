@@ -274,11 +274,30 @@ class NarcoApp(object):
             for k in range(num_folds):
                 # print('{} | Loading and predicting using {}'.format(datetime.now(), os.path.join(
                 # gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k+1))))
-                with tf.Graph().as_default() as graph:
-                    with tf.Session():
-                        m = gpf.saver.Saver().load(
-                            os.path.join(gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k + 1)))
-                        mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+                gp_model_filename = os.path.join(gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k + 1))
+                if not os.path.isfile(gp_model_filename):
+                    print(f'MISSING Model: {gp_model_filename}\n')
+                    continue
+                else:
+                    #if path.exists():
+                    #    path.unlink()
+                    #saver = gpf.saver.Saver()
+                    # loading_context = gpf.saver.SaverContext(version='1.1') #,autocompile=False)
+                    #m = saver.load(gp_model_filename, context=ctx_for_loading)
+                    # m.clear()
+                    # m.compile()
+                    #mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+                    #continue
+                    with tf.Graph().as_default() as graph:
+                        with tf.Session().as_default():
+                            m = gpf.saver.Saver().load(gp_model_filename)
+                            # print(f'Using: {gp_model_filename}\n')
+
+                            # m = gpf.saver.Saver().load(gp_model_filename, context=loading_context)
+                            #m.clear()
+                            #m.compile()
+                            mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+                            # return None
 
         self.narcolepsy_probability = np.sum(np.multiply(np.mean(mean_pred, axis=2), scales), axis=1) / np.sum(scales)
         return self.narcolepsy_probability
