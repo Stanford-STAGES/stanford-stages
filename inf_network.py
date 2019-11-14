@@ -52,24 +52,28 @@ class SCModel(object):
         # Layer hidden
         with tf.compat.v1.variable_scope('hidden_hidden') as scope:
             if ac_config.lstm:
+
                 cell = tf.compat.v1.nn.rnn_cell.BasicLSTMCell(ac_config.num_hidden, forget_bias=1.0, state_is_tuple=True)  #  Forget bias is the bias added to forget gates. This must be set to 0 when resotring from cudnnLSTM-trained checkpoints
-                # equivalent to above - but optimized for gpu ... perhaps.
-                #cell = tf.compat.v1.keras.layers.LSTMCell(ac_config.num_hidden, unit_forget_bias=True)
 
                 cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=iKeepProb,
                                                                output_keep_prob=oKeepProb)
+                initial_state = tf.compat.v1.nn.rnn_cell.LSTMStateTuple(self._initial_state[:, :ac_config.num_hidden],
+                                                                        self._initial_state[:, ac_config.num_hidden:])
+
+                outputs, final_state = tf.compat.v1.nn.dynamic_rnn(cell, hidden_combined, dtype=tf.float32,
+                                                                   initial_state=initial_state)
+                #outputs, final_state = tf.compat.v1.keras.layers.RNN(cell, hidden_combined, dtype=tf.float32,
+                #                                                     initial_state=None) #initial_state)
+
+                # equivalent to above - but optimized for gpu ... perhaps.
+                # cell = tf.compat.v1.keras.layers.LSTMCell(ac_config.num_hidden, unit_forget_bias=True)
 
                 # Update for dropout wrapper ...
                 #cell = tf.compat.v1.keras.layers.LSTMCell(ac_config.num_hidden, unit_forget_bias=True)
                                                           # dropout=iKeepProb, recurrent_dropout=oKeepProb)
 
-                initial_state = tf.compat.v1.nn.rnn_cell.LSTMStateTuple(self._initial_state[:, :ac_config.num_hidden],
-                                                                        self._initial_state[:, ac_config.num_hidden:])
-
                 #initial_state = (self._initial_state[:, :ac_config.num_hidden],
                 #                 self._initial_state[:, ac_config.num_hidden:])
-                outputs, final_state = tf.compat.v1.nn.dynamic_rnn(cell, hidden_combined, dtype=tf.float32,
-                                                                   initial_state=initial_state)
                 #outputs, final_state = tf.compat.v1.keras.layers(cell, hidden_combined, dtype=tf.float32,
                 #                                                 initial_state=initial_state)
 

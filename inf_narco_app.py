@@ -127,7 +127,7 @@ def main(edf_filename,
     narco_app.eval_hypnodensity()
 
     if narco_app.config.audit.get('diagnosis', False):
-        narco_app.audit(narco_app.eval_narcolepsy,'Diagnosing...')
+        narco_app.audit(narco_app.eval_narcolepsy, 'Diagnosing...')
 
     if hypno_config['show']['hypnogram']:
         print("Hypnogram:")
@@ -246,7 +246,6 @@ class NarcoApp(object):
             audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
             fp.write(audit_str)
 
-
     def get_narco_gpmodels(self):
         return self.models_used
 
@@ -266,6 +265,21 @@ class NarcoApp(object):
         scales = self.config.narco_prediction_scales
         gpmodels_base_path = self.config.narco_classifier_path
 
+        # config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True,))
+        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, ),
+        #                                   log_device_placement=True,)
+
+        # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
+        # tf.debugging.set_log_device_placement(True)
+
+        #  with tf.compat.v1.device('/GPU:0') as asif:
+        # m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU memory ...
+        #mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+
+        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True),
+                                          log_device_placement=False, )
         for idx, gpmodel in enumerate(gpmodels):
             print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
 
@@ -274,32 +288,27 @@ class NarcoApp(object):
             for k in range(num_folds):
                 # print('{} | Loading and predicting using {}'.format(datetime.now(), os.path.join(
                 # gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k+1))))
-                gp_model_filename = os.path.join(gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k + 1))
+                gp_model_filename = os.path.join(gpmodels_base_path, gpmodel,
+                                                 gpmodel + '_fold{:02}.gpm'.format(k + 1))
                 if not os.path.isfile(gp_model_filename):
                     print(f'MISSING Model: {gp_model_filename}\n')
                     continue
                 else:
-                    #if path.exists():
-                    #    path.unlink()
-                    #saver = gpf.saver.Saver()
-                    # loading_context = gpf.saver.SaverContext(version='1.1') #,autocompile=False)
-                    #m = saver.load(gp_model_filename, context=ctx_for_loading)
-                    # m.clear()
-                    # m.compile()
-                    #mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
-                    #continue
-                    with tf.Graph().as_default() as graph:
-                        with tf.Session().as_default():
-                            m = gpf.saver.Saver().load(gp_model_filename)
-                            # print(f'Using: {gp_model_filename}\n')
+                    with tf.compat.v1.Graph().as_default() as graph:
+                        # config = tf.compat.v1.ConfigProto(
+                        #     gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, visible_device_list='0'),
+                        #     log_device_placement=False, device_count={'GPU': 1, 'CPU': 16})
+                        #config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=False),
+                        #                                  log_device_placement=False, )
 
-                            # m = gpf.saver.Saver().load(gp_model_filename, context=loading_context)
-                            #m.clear()
-                            #m.compile()
-                            mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
-                            # return None
+                        with tf.compat.v1.Session(
+                                config=config).as_default() as session:  # little gpu allocation and cuda usage
+                            m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU resources
+                            # mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+                            mean_pred[:, idx, k, np.newaxis], _ = m.predict_y(x)
 
         self.narcolepsy_probability = np.sum(np.multiply(np.mean(mean_pred, axis=2), scales), axis=1) / np.sum(scales)
+        print(self.narcolepsy_probability[0])
         return self.narcolepsy_probability
 
     def eval_hypnodensity(self):

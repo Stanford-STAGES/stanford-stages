@@ -24,6 +24,8 @@ import tensorflow as tf
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint
+
+
 # import pdb
 
 
@@ -183,7 +185,7 @@ class Hypnodensity(object):
         print('Encoding done')
         if self.config.saveEncoding:
             if export_path is None:
-               export_path = Path(self.config.encodeFilename)
+                export_path = Path(self.config.encodeFilename)
             self.export_encoded_data(export_path)
 
     # compacts hypnodensity, possibly from mutliple models, into one Mx5 probability matrix.
@@ -266,7 +268,6 @@ class Hypnodensity(object):
         # python is 0-based, and assumes a segsize of 60.
         if isinstance(self.lightsOff, int) and isinstance(self.lightsOn, int):
             self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
-
 
     def loadEDF(self):
         if not self.edf:
@@ -488,18 +489,18 @@ class Hypnodensity(object):
     @staticmethod
     def run(dat, ac_config):
 
-        with tf.Graph().as_default() as g:
+        with tf.compat.v1.Graph().as_default() as g:
             m = SCModel(ac_config)
-            s = tf.train.Saver(tf.compat.v1.global_variables())
+            s = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
             # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
             config = tf.compat.v1.ConfigProto(log_device_placement=False)
             # config = tf.ConfigProto()
-            # config = tf.ConfigProto(log_device_placement=True)  # Seeing log_device_placement=True gives way too much output.
+            # config = tf.ConfigProto(log_device_placement=True)  # Setting log_device_placement=True gives way too much output.
             # config.gpu_options.allow_growth = True  # See also: https://www.tensorflow.org/guide/using_gpu
             # config.gpu_options.per_process_gpu_memory_fraction = 1.0
-            with tf.Session(config=config) as session:
-                ckpt = tf.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
+            with tf.compat.v1.Session(config=config) as session:
+                ckpt = tf.compat.v1.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
 
                 s.restore(session, ckpt.model_checkpoint_path)
 
@@ -507,9 +508,8 @@ class Hypnodensity(object):
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
-                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1)
-                                                                                  * ac_config.eval_nseg_atonce * ac_config.segsize,
-                        :]
+                    x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) *
+                            ac_config.eval_nseg_atonce * ac_config.segsize, :]
 
                     est, _ = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
@@ -691,6 +691,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         scaled_features[scaled_features > 10] = 10
         scaled_features[scaled_features < -10] = -10
+
+        # For debugging:  How many are less than 10 -->  (scaled_features < -10).sum()
 
         return scaled_features
 
