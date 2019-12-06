@@ -270,7 +270,8 @@ class Hypnodensity(object):
         Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
 
         for ch, ch_idx in self.channels_used.items():
-            if ch_idx:
+            # Fix for issue 9: https://github.com/Stanford-STAGES/stanford-stages/issues/9
+            if isinstance(ch_idx, int):
                 myprint('Filtering {}'.format(ch))
                 self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
 
@@ -279,25 +280,24 @@ class Hypnodensity(object):
                         dtype=np.float32)
 
     def resampling(self, ch, fs):
-        myprint("original samplerate = ", fs);
+        myprint("original samplerate = ", fs)
         myprint("resampling to ", self.fs)
-        if fs==500 or fs==200:
+        if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                 0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000, 0.184663795586300,
                 0.143586518157187, 0.0894912177899215, 0.0376532652007562, 0.0, -0.0186368912579407,
                 -0.0208207236911009, -0.0175636017706537],
                 [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
                 -0.050624178425469]]  # from matlab
-            if fs==500:
+            if fs == 500:
                 s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
                 self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
-            elif fs==200:
+            elif fs == 200:
                 s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
                 self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s, zero_phase=False)
         else:
             self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch],
-                                        self.fs, fs, axis=0, window=('kaiser', 5.0))
-
+                                                            self.fs, fs, axis=0, window=('kaiser', 5.0))
 
     def psg_noise_level(self):
 
@@ -322,7 +322,6 @@ class Hypnodensity(object):
                 unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
 
-
     def get_loudest_channel(self, channelTags, meanV, covM):
         noise = np.zeros(len(channelTags))
         for [idx,ch] in enumerate(channelTags):
@@ -337,8 +336,7 @@ class Hypnodensity(object):
         # return loudest_ch
 
     def channel_noise_level(self, channelTag, meanV, covM):
-
-        hjorth= self.extract_hjorth(self.loaded_channels[channelTag])
+        hjorth = self.extract_hjorth(self.loaded_channels[channelTag])
         noise_vec = np.zeros(hjorth.shape[1])
         for k in range(len(noise_vec)):
             M = hjorth[:, k][:, np.newaxis]
@@ -348,7 +346,6 @@ class Hypnodensity(object):
             return np.mean(noise_vec)
 
     def run_data(dat, model, root_model_path):
-
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
         hyp = Hypnodensity.run(dat, ac_config)
         return hyp
@@ -361,7 +358,6 @@ class Hypnodensity(object):
             self.hypnodensity.append(hyp)
 
     def segment(dat, ac_config):
-
         # Get integer value for segment size using //
         n_seg = dat.shape[1] // ac_config.segsize
 
