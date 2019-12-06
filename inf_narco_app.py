@@ -270,16 +270,16 @@ class NarcoApp(object):
         # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, ),
         #                                   log_device_placement=True,)
 
-        # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+        print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
-        # tf.debugging.set_log_device_placement(True)
+        tf.debugging.set_log_device_placement(True)
 
         #  with tf.compat.v1.device('/GPU:0') as asif:
         # m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU memory ...
         #mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
 
         config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True),
-                                          log_device_placement=False, )
+                                          log_device_placement=True, )
         for idx, gpmodel in enumerate(gpmodels):
             print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
 
@@ -294,6 +294,12 @@ class NarcoApp(object):
                     print(f'MISSING Model: {gp_model_filename}\n')
                     continue
                 else:
+
+                    gpf.reset_default_graph_and_session()
+
+                    m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU resources
+                    mean_pred[:, idx, k, np.newaxis], _ = m.predict_y(x)
+                    continue
                     with tf.compat.v1.Graph().as_default() as graph:
                         # config = tf.compat.v1.ConfigProto(
                         #     gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, visible_device_list='0'),
@@ -304,6 +310,7 @@ class NarcoApp(object):
                         with tf.compat.v1.Session(
                                 config=config).as_default() as session:  # little gpu allocation and cuda usage
                             m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU resources
+                            # m = gpf.train.Saver().restore(gp_model_filename)  # Allocates GPU resources
                             # mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
                             mean_pred[:, idx, k, np.newaxis], _ = m.predict_y(x)
 

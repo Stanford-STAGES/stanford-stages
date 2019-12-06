@@ -52,10 +52,10 @@ def _activation_summary(x):
 
 
 def _variable_on_cpu(name, shape, initializer):
-    with tf.device('/cpu:0'):
+    with tf.device('/gpu:0'):
         dtype = tf.float32
         var = tf.compat.v1.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=True)
-        return var
+    return var
 
 
 def _variable_with_weight_decay(name, shape, stddev, wd):

@@ -60,7 +60,7 @@ class AppConfig(object):
         self.lightsOff = []
         self.lightsOn = []
 
-        self.narco_prediction_num_folds = 5 # for the gp narco classifier
+        self.narco_prediction_num_folds = 5  # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
                                         0.89474061, 0.87774597, 0.87615981, 0.88391175, 0.89158020, 0.88084675,
                                         0.89320215, 0.87923673, 0.87615981, 0.88850328]
@@ -147,6 +147,8 @@ class ACConfig(Config):
             # atonce = 35 # 103, 132
             # atonce = 30 # 102, 116, allow growth=true, num batches = 59
             # atonce = 10 # 118, 133 (num batches = 176)
+
+            atonce = 50  # 101, 123, 114 (allow growth=true) numbatches = 44
         else:
             segsize = 20
             atonce = 3000
@@ -159,7 +161,7 @@ class ACConfig(Config):
         if is_training:
             batch_size = 30
         else:
-            batch_size = 1 # had been 1
+            batch_size = 1  # had been 1
 
         scope = 'ac'
         num_features = 1640
