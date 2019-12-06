@@ -327,7 +327,8 @@ class Hypnodensity(object):
         Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
 
         for ch, ch_idx in self.channels_used.items():
-            if ch_idx:
+            # Fix for issue 9: https://github.com/Stanford-STAGES/stanford-stages/issues/9
+            if isinstance(ch_idx, int):
                 myprint('Filtering {}'.format(ch))
                 self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
 
@@ -356,6 +357,7 @@ class Hypnodensity(object):
         else:
             self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
                                                             window=('kaiser', 5.0))
+
 
     def psg_noise_level(self):
         # Only need to check noise levels when we have two central or occipital channels
@@ -462,7 +464,6 @@ class Hypnodensity(object):
 
     @staticmethod
     def segment(dat, ac_config):
-
         # Get integer value for segment size using //
         n_seg = dat.shape[1] // ac_config.segsize
 
