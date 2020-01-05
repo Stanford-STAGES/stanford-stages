@@ -12,15 +12,19 @@ import os  # for opening os files for pickle.
 from inf_tools import softmax
 
 
-
 class HypnodensityFeatures(object):  # <-- extract_features
 
     def __init__(self, app_config):
         self.config = app_config
         self.meanV = []
         self.scaleV = []
-        self.selected = []  # [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296, 299, 390, 405, 450, 467, 468, 470, 474, 476, 477]
+        try:
+            self.selected = app_config.narco_prediction_selected_features
+        except:
+            self.selected = []  # [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296, 299, 390, 405, 450, 467, 468, 470, 474, 476, 477]
+
         self.scale_path = app_config.hypnodensity_scale_path  # 'scaling'
+
         # self.select_features_path = appConfig.hypnodensity_select_features_path
         # self.select_features_pickle_name = appConfig.hypnodensity_select_features_pickle_name  # 'narcoFeatureSelect.p'
 
