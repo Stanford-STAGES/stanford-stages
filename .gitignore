@@ -1,4 +1,5 @@
 *.*~
 *.h5
 *.pyc
+*.idea
 __pycache__
