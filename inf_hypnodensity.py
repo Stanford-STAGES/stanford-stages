@@ -481,7 +481,7 @@ class Hypnodensity(object):
             m = SCModel(ac_config)
             s = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
-            # print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
+            print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
             config = tf.compat.v1.ConfigProto(log_device_placement=False)
             # config = tf.ConfigProto()
             # config = tf.ConfigProto(log_device_placement=True)  # Setting log_device_placement=True gives way too much output.
