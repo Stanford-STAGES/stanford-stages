@@ -16,7 +16,7 @@ https://docs.google.com/document/d/e/2PACX-1vTvin7Gdn7FN9-2NbAQKgnApR6F73en46cTF
 
 Classification models are hosted externally and should be downloaded and extracted into the repositories 'ml/' subfolder
 
-* ac.zip - www.informaton.org/narco/ml/ac.zip [1.0 GB]
+* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
 * gp.zip - www.informaton.org/narco/ml/gp.zip ([Mirror 2](https://stanfordmedicine.box.com/shared/static/de1741vdu2x0ltodpnsqftr533vwmkvb.zip)) [61.4 MiB, 64.4 MB] 
 
 When complete the 'ml/' directory tree should like:<pre>
