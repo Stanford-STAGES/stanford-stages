@@ -68,6 +68,8 @@ class AppConfig(object):
         self.narco_prediction_selected_features = [1, 11, 14, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140,
                                                    147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296,
                                                    390, 405, 450, 467, 468, 470, 474, 476, 477]
+        # Set to False to minimize printed output.
+        self.verbose: bool = True
 
 
 # Define Config

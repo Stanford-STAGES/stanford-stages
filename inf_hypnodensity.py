@@ -58,7 +58,7 @@ class Hypnodensity(object):
             if in_a_pickle:
                 with p.open('wb') as fp:
                     pickle.dump(self.hypnodensity, fp)
-                    myprint("Hypnodensity pickled")
+                    self.myprint("Hypnodensity pickled")
             else:
                 with h5py.File(p, 'w') as fp:
                     fp['hypnodensity'] = self.hypnodensity
@@ -69,7 +69,7 @@ class Hypnodensity(object):
 
     def import_hypnodensity(self, p=None):
         if isinstance(p, Path) and p.exists():
-            myprint('Loading previously saved hypnodensity')
+            self.myprint('Loading previously saved hypnodensity')
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
             if in_a_pickle:
                 with p.open('rb') as fp:
@@ -93,7 +93,7 @@ class Hypnodensity(object):
                 print("Not in a pickle!")
                 with h5py.File(p, 'w') as fp:
                     fp['encodedD'] = self.encodedD
-                myprint(".h5 exporting done")
+                self.myprint(".h5 exporting done")
             return True
         else:
             print('Not an instance of Path')
@@ -102,7 +102,7 @@ class Hypnodensity(object):
     def import_encoded_data(self, p=None):
         if isinstance(p, Path) and p.exists():
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
-            myprint('Loading previously saved encoded data')
+            self.myprint('Loading previously saved encoded data')
             if in_a_pickle:
                 with p.open('rb') as fp:
                     self.encodedD = pickle.load(fp)
@@ -168,9 +168,9 @@ class Hypnodensity(object):
 
     def encode_edf(self, export_path=None):
         # and if you can't then go through all the steps to encode it
-        myprint('Load EDF')
+        self.myprint('Load EDF')
         self.loadEDF()
-        myprint('Load noise level')
+        self.myprint('Load noise level')
         self.psg_noise_level()
         print('Filtering channels')
         self.filtering()
@@ -273,15 +273,15 @@ class Hypnodensity(object):
                 raise osErr
 
         for ch in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
-            myprint('Loading', ch)
+            self.myprint('Loading', ch)
             if isinstance(self.channels_used[ch], int):
 
                 self.loaded_channels[ch] = self.edf.readSignal(self.channels_used[ch])
                 if self.edf.getPhysicalDimension(self.channels_used[ch]).lower() == 'mv':
-                    myprint('mv')
+                    self.myprint('mv')
                     self.loaded_channels[ch] *= 1e3
                 elif self.edf.getPhysicalDimension(self.channels_used[ch]).lower() == 'v':
-                    myprint('v')
+                    self.myprint('v')
                     self.loaded_channels[ch] *= 1e6
 
                 fs = int(self.edf.samplefrequency(self.channels_used[ch]))
@@ -314,7 +314,7 @@ class Hypnodensity(object):
         return signal_labels
 
     def filtering(self):
-        myprint('Filtering remaining signals')
+        self.myprint('Filtering remaining signals')
         fs = self.fs
 
         Fh = signal.butter(5, self.fsH / (fs / 2), btype='highpass', output='ba')
@@ -323,7 +323,7 @@ class Hypnodensity(object):
         for ch, ch_idx in self.channels_used.items():
             # Fix for issue 9: https://github.com/Stanford-STAGES/stanford-stages/issues/9
             if isinstance(ch_idx, int):
-                myprint('Filtering {}'.format(ch))
+                self.myprint('Filtering {}'.format(ch))
                 self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
 
                 if fs > (2 * self.fsL):
@@ -331,8 +331,8 @@ class Hypnodensity(object):
                         dtype=np.float32)
 
     def resampling(self, ch, fs):
-        myprint("original samplerate = ", fs)
-        myprint("resampling to ", self.fs)
+        self.myprint("original samplerate = ", fs)
+        self.myprint("resampling to ", self.fs)
         if fs == 500 or fs == 200:
             numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
                           0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
@@ -404,6 +404,10 @@ class Hypnodensity(object):
             hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
+
+    def myprint(self, string, *args):
+        if self.config.verbose:
+            myprint(string, *args)
 
     # Use 5 minute sliding window.
     @staticmethod
