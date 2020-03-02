@@ -304,20 +304,28 @@ class Hypnodensity(object):
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
         # by first checking if there is a channel category 'C4' or 'O2'
-        hasC4 = self.channels_used.get('C4')
-        hasO2 = self.channels_used.get('O2')
+        hasC4 = self.channels_used.get('C4') is not None
+        hasO2 = self.channels_used.get('O2') is not None
 
-        if hasC4 or hasO2:
+        # Update for issue #6 - The original code did assumed presence of C4 or O2 meant presence of C3 and O1, which is
+        # not valid.  Need to explicitly ensure we have both channels when checking noise.
+        hasC3 = self.channels_used.get('C3') is not None
+        hasO1 = self.channels_used.get('O1') is not None
+
+        hasCentrals = hasC3 and hasC4
+        hasOccipitals = hasO1 and hasO2
+
+        if hasCentrals or hasOccipitals:
             noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
             meanV = noiseM['meanV'].item()  # 0 for Central,    idx_central = 0
             covM = noiseM['covM'].item()    # 1 for Occipital,  idx_occipital = 1
 
-            if hasC4:
+            if hasCentrals:
                 centrals_idx = 0
                 unused_ch = self.get_loudest_channel(['C3','C4'],meanV[centrals_idx], covM[centrals_idx])
                 del self.channels_used[unused_ch]
 
-            if hasO2:
+            if hasOccipitals:
                 occipitals_idx = 1
                 unused_ch = self.get_loudest_channel(['O1','O2'],meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
