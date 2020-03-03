@@ -60,7 +60,7 @@ class AppConfig(object):
         self.lightsOff = []
         self.lightsOn = []
 
-        self.narco_prediction_num_folds = 5 # for the gp narco classifier
+        self.narco_prediction_num_folds = 5  # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
                                         0.89474061, 0.87774597, 0.87615981, 0.88391175, 0.89158020, 0.88084675,
                                         0.89320215, 0.87923673, 0.87615981, 0.88850328]
@@ -87,7 +87,7 @@ class Config(object):
 
     def __init__(self, scope, num_features, num_hidden, segsize, lstm, num_classes, batch_size, max_train_len, atonce,
                  restart=True, model_name='small_lstm', is_train=False,
-                 root_model_dir = './',  # Change this if models are saved elsewhere
+                 root_model_dir='./',  # Change this if models are saved elsewhere
                 ):
 
         self.hypnodensity_model_dir = os.path.join(root_model_dir, scope, model_name)
