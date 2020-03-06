@@ -165,33 +165,35 @@ def change_file_extension(fullname, new_extension):
 
 
 def render_hypnodensity(hypnodensity, show_plot=False, save_plot=False, filename='tmp.png'):
-    fig, ax = plt.subplots(figsize=[11, 5])
-    av = np.cumsum(hypnodensity, axis=1)
-    c = [[0.90, 0.19, 0.87],  # pink
-         [0.2, 0.89, 0.93],   # aqua/turquoise
-         [0.22, 0.44, 0.73],  # blue
-         [0.34, 0.70, 0.39]]  # green
 
-    for i in range(4):
-        xy = np.zeros([av.shape[0] * 2, 2])
-        xy[:av.shape[0], 0] = np.arange(av.shape[0])
-        xy[av.shape[0]:, 0] = np.flip(np.arange(av.shape[0]), axis=0)
+    if show_plot or save_plot:
+        fig, ax = plt.subplots(figsize=[11, 5])
+        av = np.cumsum(hypnodensity, axis=1)
+        c = [[0.90, 0.19, 0.87],  # pink
+             [0.2, 0.89, 0.93],   # aqua/turquoise
+             [0.22, 0.44, 0.73],  # blue
+             [0.34, 0.70, 0.39]]  # green
 
-        xy[:av.shape[0], 1] = av[:, i]
-        xy[av.shape[0]:, 1] = np.flip(av[:, i + 1], axis=0)
+        for i in range(4):
+            xy = np.zeros([av.shape[0] * 2, 2])
+            xy[:av.shape[0], 0] = np.arange(av.shape[0])
+            xy[av.shape[0]:, 0] = np.flip(np.arange(av.shape[0]), axis=0)
 
-        poly = Polygon(xy, facecolor=c[i], edgecolor=None)
-        ax.add_patch(poly)
+            xy[:av.shape[0], 1] = av[:, i]
+            xy[av.shape[0]:, 1] = np.flip(av[:, i + 1], axis=0)
 
-    plt.xlim([0, av.shape[0]])
-    # fig.savefig('test.png')
-    if save_plot:
-        fig.savefig(filename)
-        # plt.savefig(fileName)
+            poly = Polygon(xy, facecolor=c[i], edgecolor=None)
+            ax.add_patch(poly)
 
-    if show_plot:
-        print("Showing hypnodensity - close figure to continue.")
-        plt.show()
+        plt.xlim([0, av.shape[0]])
+        # fig.savefig('test.png')
+        if save_plot:
+            fig.savefig(filename)
+            # plt.savefig(fileName)
+
+        if show_plot:
+            print("Showing hypnodensity - close figure to continue.")
+            plt.show()
 
 
 class NarcoApp(object):
