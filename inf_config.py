@@ -22,9 +22,9 @@ class AppConfig(object):
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
-        self.fs = np.array(100,dtype=float)
-        self.fsH = np.array(0.2,dtype=float)
-        self.fsL = np.array(49,dtype=float)
+        self.fs = np.array(100, dtype=float)
+        self.fsH = np.array(0.2, dtype=float)
+        self.fsL = np.array(49, dtype=float)
 
         # Wrapper hooks for auditing processing time of various parts of the app.
         self.audit = {'encoding': False, 'hypnodensity': False, 'diagnosis': False}

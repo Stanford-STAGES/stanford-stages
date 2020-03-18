@@ -199,18 +199,20 @@ class Hypnodensity(object):
         hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
         return hypnogram
 
-    def get_features(self, model_name, idx, start_index : int = None, stop_index : int = None,
-                     cull_minutes_after_start : float = None, cull_minutes_before_start : float = None):
+    def get_features(self, model_name, idx, start_index: int = None, stop_index: int = None,
+                     cull_minutes_after_start: float = None, cull_minutes_before_start: float = None):
         _hypnodensity = self.hypnodensity[idx]
+        # configuration is currently setup for 15 second epochs (magic).  segments are .25 second and we have 60 of them
+        rows_per_minute = 4
         if cull_minutes_after_start is not None:
             start_index = np.ceil(rows_per_minute * cull_minutes_after_start)
         if cull_minutes_before_start is not None:
-            num_rows = np.shape(_hypnodensity)[0]
+            num_rows = _hypnodensity.shape[0]  # or this  way: np.shape(_hypnodensity)[0]
             stop_index = num_rows - np.ceil(rows_per_minute * cull_minutes_after_start)
         if stop_index is not None:
-            _hypnodensity = _hypnodensity[0:np.max(0,stop_index),:]
+            _hypnodensity = _hypnodensity[0:np.max(0, stop_index), :]
         if start_index is not None:
-            num_rows = np.shape(_hypnodensity)[0]
+            num_rows = _hypnodensity.shape[0]
             _hypnodensity = _hypnodensity[np.min(num_rows, start_index):, :]
 
         selected_features = self.config.narco_prediction_selected_features
@@ -470,7 +472,6 @@ class Hypnodensity(object):
 
     @staticmethod
     def run_data(dat, model, root_model_path):
-
         ac_config = ACConfig(model_name=model, is_training=False, root_model_dir=root_model_path)
         hyp = Hypnodensity.run(dat, ac_config)
         return hyp
