@@ -208,12 +208,15 @@ class Hypnodensity(object):
             start_index = np.ceil(rows_per_minute * cull_minutes_after_start)
         if cull_minutes_before_start is not None:
             num_rows = _hypnodensity.shape[0]  # or this  way: np.shape(_hypnodensity)[0]
-            stop_index = num_rows - np.ceil(rows_per_minute * cull_minutes_after_start)
+            stop_index = num_rows - np.ceil(rows_per_minute * cull_minutes_after_start)  #
         if stop_index is not None:
-            _hypnodensity = _hypnodensity[0:np.max(0, stop_index), :]
+            stop_index = int(stop_index)
+            _hypnodensity = _hypnodensity[:max(0, stop_index), :]
         if start_index is not None:
+            start_index = int(start_index)
             num_rows = _hypnodensity.shape[0]
-            _hypnodensity = _hypnodensity[np.min(num_rows, start_index):, :]
+            _hypnodensity = _hypnodensity[min(num_rows-1, start_index):, :]  # -1 b/c 0-based indexing for start and
+            # 'min to ensure we don't shoot past the data that we have.
 
         selected_features = self.config.narco_prediction_selected_features
         x = self.Features.extract(_hypnodensity)
