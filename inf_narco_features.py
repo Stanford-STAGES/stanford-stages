@@ -31,7 +31,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
     def extract(self, hyp):
         eps = 1e-10
         features = np.zeros([24 + 31 * 15])
-        k = [i for i, v in enumerate(hyp[:, 0]) if np.isnan(v)]
+        hyp = hyp[~np.isnan(hyp[:, 0]), :]  # or np.invert(np.isnan(hyp[:, 0])
+        # k = [i for i, v in enumerate(hyp[:, 0]) if np.isnan(v)]
+        # hyp[k[0] - 2:k[-1] + 2, :]
         j = -1
         f = 10
 
@@ -52,7 +54,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 try:
                     I1 = (i for i, v in enumerate(rate) if v > 0.05).__next__()
                 except StopIteration:
-
                     I1 = len(hyp)
                 features[j * 15 + 4] = np.log(I1 * 2 + eps)
 

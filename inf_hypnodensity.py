@@ -283,7 +283,6 @@ class Hypnodensity(object):
 
     def loadEDF(self):
         if not self.edf:
-
             try:
                 self.edf = pyedflib.EdfReader(self.edf_pathname)
             except OSError as osErr:
