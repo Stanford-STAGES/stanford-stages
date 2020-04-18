@@ -538,7 +538,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-
         features[-24] = self.logmodulus(SL * f)
         features[-23] = self.logmodulus(RL - SL * f)
 
@@ -582,8 +581,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
             except FileNotFoundError as e:
                 print("File not found ", e)
                 print("meanV set to 0 and scaleV set to 1")
-                self.meanV = 0;
-                self.scaleV = 1;
+                self.meanV = 0
+                self.scaleV = 1
 
         scaled_features -= self.meanV
         scaled_features = np.divide(scaled_features, self.scaleV)

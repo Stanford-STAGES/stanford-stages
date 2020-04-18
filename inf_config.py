@@ -1,6 +1,7 @@
 import os
 import numpy as np
 
+
 class AppConfig(object):
 
     def __init__(self):
@@ -34,7 +35,7 @@ class AppConfig(object):
                        }
         #self.CCsize = dict(zip(self.channels,
         #                [2,2,2,2,4,4,0.4,[],[]]))
-        self.channels_used =   dict.fromkeys(self.channels)
+        self.channels_used = dict.fromkeys(self.channels)
         self.loaded_channels = dict.fromkeys(self.channels)
 
         self.psg_noise_file_pathname = './ml/noiseM.mat'
@@ -146,4 +147,4 @@ class ACConfig(Config):
         num_classes = 5
         max_train_len = 14400
         super(ACConfig, self).__init__(scope, num_features, num_hidden, segsize, lstm, num_classes, batch_size,
-                                       max_train_len, atonce, restart, model_name, is_training,root_model_dir)
+                                       max_train_len, atonce, restart, model_name, is_training, root_model_dir)
