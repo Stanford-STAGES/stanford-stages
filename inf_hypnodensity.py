@@ -156,6 +156,7 @@ class Hypnodensity(object):
             # now and can skip this part.  Otherwise if we are auditing or not able to import a cached hypnodensity,
             # then we want to generate the hypnodensity
             h = Path(self.config.filename["h5_hypnodensity"])
+            # h = Path(self.config.filename["pkl_hypnodensity"])
             if audit_hypnodensity or not self.config.encodeOnly or not self.import_hypnodensity(h):
                 print('Calculating hypnodensity')
                 if audit_hypnodensity:
@@ -511,6 +512,7 @@ class Hypnodensity(object):
             s = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
             print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
+            # config = tf.compat.v1.ConfigProto(log_device_placement=False, device_count={'GPU': 0}) # For cpu only operations
             config = tf.compat.v1.ConfigProto(log_device_placement=False)
             # config = tf.ConfigProto()
             # config = tf.ConfigProto(log_device_placement=True)  # Setting log_device_placement=True gives way too much output.

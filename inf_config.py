@@ -49,8 +49,13 @@ class AppConfig(object):
         self.hypnodensity_model_root_path = str(this_path.joinpath('ml/'))
         self.hypnodensity_scale_path = str(this_path.joinpath('ml/scaling/'))
 
+        self.psg_noise_file_pathname = 'F:/ml/noiseM.mat'
+        self.hypnodensity_model_root_path = 'F:/ml/'
+        self.hypnodensity_scale_path = 'F:/ml/scaling/'
+
         # Related to classifying narcolepsy from hypnodensity features
         self.narco_classifier_path = str(this_path.joinpath('ml/gp/'))
+        # self.narco_classifier_path = str('F:/ml/gp/')
 
         # self.hypnodensity_select_features_path = './ml/'
         # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
@@ -138,14 +143,14 @@ class ACConfig(Config):
         if model_name[6:8] == 'ls':
             segsize = 60
             atonce = 1000 # 2 batches, runs out of memory though :(
-            atonce = 600 # 173 seconds
-            atonce = 400 # 154 seconds
-            atonce = 200 # 150 seconds
-            atonce = 100 # 110, 121
+            # atonce = 600 # 173 seconds
+            # atonce = 400 # 154 seconds
+            # atonce = 200 # 150 seconds
+            # atonce = 100 # 110, 121
             # atonce = 60 # 120 (num batches = 30)
             # atonce = 50 # 104
             # atonce = 45  # 102, 116 (allow growth = true, num batches = 40
-            atonce = 40 # 101, 123, 114 (allow growth=true) numbatches = 44
+            # atonce = 40 # 101, 123, 114 (allow growth=true) numbatches = 44
             # atonce = 35 # 103, 132
             # atonce = 30 # 102, 116, allow growth=true, num batches = 59
             # atonce = 10 # 118, 133 (num batches = 176)
