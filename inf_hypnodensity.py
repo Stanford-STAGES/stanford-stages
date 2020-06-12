@@ -379,24 +379,24 @@ class Hypnodensity(object):
 
         # Update for issue #6 - The original code did assumed presence of C4 or O2 meant presence of C3 and O1, which is
         # not valid.  Need to explicitly ensure we have both channels when checking noise.
-        hasC3 = self.channels_used.get('C3') is not None
-        hasO1 = self.channels_used.get('O1') is not None
+        has_c3 = self.channels_used.get('C3') is not None
+        has_o1 = self.channels_used.get('O1') is not None
 
-        hasCentrals = hasC3 and hasC4
-        hasOccipitals = hasO1 and hasO2
+        has_centrals = has_c3 and hasC4
+        has_occipitals = has_o1 and hasO2
 
-        if hasCentrals or hasOccipitals:
+        if has_centrals or has_occipitals:
             # print(f'Loading noise file: {self.config.psg_noise_file_pathname}\n')
             noiseM = sio.loadmat(self.config.psg_noise_file_pathname, squeeze_me=True)['noiseM']
             meanV = noiseM['meanV'].item()  # 0 for Central,    idx_central = 0
             covM = noiseM['covM'].item()  # 1 for Occipital,  idx_occipital = 1
 
-            if hasCentrals:
+            if has_centrals:
                 centrals_idx = 0
                 unused_ch = self.get_loudest_channel(['C3', 'C4'], meanV[centrals_idx], covM[centrals_idx])
                 del self.channels_used[unused_ch]
 
-            if hasOccipitals:
+            if has_occipitals:
                 occipitals_idx = 1
                 unused_ch = self.get_loudest_channel(['O1', 'O2'], meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
@@ -491,18 +491,18 @@ class Hypnodensity(object):
 
         # print(f'\n---------------\ndat.shape[2] = {dat.shape[2]}\nnum_batches = {num_batches}\n--------------------\n')
 
-        Nextra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize) % dat.shape[2])
-        # why not:    Nextra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
+        # n_extra = np.int(np.ceil(num_batches * ac_config.eval_nseg_atonce * ac_config.segsize) % dat.shape[2])
+        n_extra = num_batches * ac_config.eval_nseg_atonce * ac_config.segsize - dat.shape[2]
 
-        # fill remaining (nExtra) values with the mean value of each column
-        meanF = np.mean(np.mean(dat, 2), 0) * np.ones([1, Nextra, dat.shape[1]])
+        # fill remaining (n_extra) values with the mean value of each column
+        meanF = np.mean(np.mean(dat, 2), 0) * np.ones([1, n_extra, dat.shape[1]])
 
         dat = np.transpose(dat, [0, 2, 1])
         dat = np.concatenate([dat, meanF], 1)
 
         prediction = np.zeros([num_batches * ac_config.eval_nseg_atonce, 5])
 
-        return dat, Nextra, prediction, num_batches
+        return dat, n_extra, prediction, num_batches
 
     @staticmethod
     def run(dat, ac_config):
@@ -524,13 +524,14 @@ class Hypnodensity(object):
                 s.restore(session, ckpt.model_checkpoint_path)
 
                 state = np.zeros([1, ac_config.num_hidden * 2])
+                # state = m.initial_state
 
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
                     x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) *
                             ac_config.eval_nseg_atonce * ac_config.segsize, :]
 
-                    est, _ = session.run([m.logits, m.final_state], feed_dict={
+                    est, state = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
                         m.targets: np.ones([ac_config.eval_nseg_atonce * ac_config.segsize, 5]),
                         m.mask: np.ones(ac_config.eval_nseg_atonce * ac_config.segsize),

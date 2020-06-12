@@ -42,12 +42,32 @@ NARCOLEPSY_PREDICTION_CUTOFF = -0.03
 DIAGNOSIS = ["Other", "Narcolepsy type 1"]
 
 
-def main(edf_filename,
-         config_input):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
+def main(edf_filename:str = None,
+         config_input: {} = None, config_filename: str = None):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
+
+    err_msg = ''
+    if edf_filename is None:
+        err_msg += f"main() requires an edf_filename to run\n"
+    if config_input is None and config_filename is None:
+        err_msg += "main() requires a configuration dictionary or filename as input in order to run\n"
+    if err_msg != '':
+        raise Exception(err_msg)
 
     # Application settings
     app_config = AppConfig()
     app_config.edf_path = edf_filename
+
+    # Update config_input with anything found in the json file that does not exist as a key value pair in the
+    # config_input dictionary
+    if config_filename is not None:
+        if not Path(config_filename).is_file():
+            raise Exception(f"config_filename ({config_filename}) does not exist")
+        else:
+            with open(config_filename, 'r') as fid:
+                json_dict = json.load(fid)
+            for key, value in json_dict:
+                if key not in config_input:
+                    config_input[key] = value
 
     channel_categories = {
         'central': 'C3',
@@ -63,6 +83,19 @@ def main(edf_filename,
         'eogs': ('EOG-L', 'EOG-R'),
         'chin_emg': 'EMG'
     }
+    edf_path = Path(edf_filename)
+    output_path = Path(config_input.get("output_path", edf_path.parent))
+
+    model_dict = config_input.get("models", None)
+    if isinstance(model_dict, dict):
+        keys_to_check = list(vars(app_config))
+        for key in keys_to_check:
+            if key in model_dict and key != 'channels_used':
+                value = model_dict[key]
+                if isinstance(value, list) and not len(value):
+                    continue
+                else:
+                    setattr(app_config, key, value)
 
     for channel_category, channel_index in config_input["channel_indices"].items():
         channel_label = channel_categories.get(channel_category, None)
@@ -73,9 +106,9 @@ def main(edf_filename,
             else:
                 app_config.channels_used[channel_label] = channel_index
 
-    app_config.lightsOff = config_input.get('lightsOff', [])
-    app_config.lightsOn = config_input.get('lightsOn', [])
-    app_config.audit.update(config_input.get('audit',{}))
+    # app_config.lightsOff = config_input.get('lightsOff', [])
+    # app_config.lightsOn = config_input.get('lightsOn', [])
+    # app_config.audit.update(config_input.get('audit',{}))
 
     hyp = {'show': {}, 'save': {}, 'filename': {}}
     hyp['show']['plot'] = False
@@ -89,13 +122,14 @@ def main(edf_filename,
     hyp['save']['diagnosis'] = True
     hyp['save']['encoding'] = True
 
-    hyp['filename']['plot'] = change_file_extension(edf_filename, '.hypnodensity.png')
-    hyp['filename']['pkl_hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.pkl')
-    hyp['filename']['h5_hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.h5')
-    hyp['filename']['hypnodensity'] = change_file_extension(edf_filename, '.hypnodensity.txt')
-    hyp['filename']['hypnogram'] = change_file_extension(edf_filename, '.hypnogram.txt')
-    hyp['filename']['diagnosis'] = change_file_extension(edf_filename, '.diagnosis.txt')
-    hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
+    encoding_filename = output_path / (edf_path.stem + '.h5')
+    hyp['filename']['pkl_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
+    hyp['filename']['h5_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
+    hyp['filename']['hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
+    hyp['filename']['hypnogram'] = change_file_extension(encoding_filename, '.hypnogram.txt')
+    hyp['filename']['diagnosis'] = change_file_extension(encoding_filename, '.diagnosis.txt')
+    hyp['filename']['plot'] = change_file_extension(encoding_filename, '.hypnodensity.png')
+    hyp['filename']['encoding'] = encoding_filename
     hyp['filename']['pkl_encoding'] = None
     hyp['filename']['h5_encoding'] = None
     hyp['filename']['audit'] = None

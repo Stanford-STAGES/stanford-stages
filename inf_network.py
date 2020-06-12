@@ -137,7 +137,6 @@ class SCModel(object):
         return cross_ent
 
     def gather_loss(self):
-
         loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg_loss')
         losses = tf.compat.v1.get_collection('losses')
         total_loss = tf.add_n(losses, name='total_loss')

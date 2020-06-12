@@ -143,7 +143,9 @@ class ACConfig(Config):
         if model_name[6:8] == 'ls':
             segsize = 60
             atonce = 1000 # 2 batches, runs out of memory though :(
+            # atonce = 1500  #
             # atonce = 600 # 173 seconds
+            # atonce = 500  # 154 seconds
             # atonce = 400 # 154 seconds
             # atonce = 200 # 150 seconds
             # atonce = 100 # 110, 121
@@ -173,4 +175,4 @@ class ACConfig(Config):
         num_classes = 5
         max_train_len = 14400
         super(ACConfig, self).__init__(scope, num_features, num_hidden, segsize, lstm, num_classes, batch_size,
-                                       max_train_len, atonce, restart, model_name, is_training,root_model_dir)
+                                       max_train_len, atonce, restart, model_name, is_training, root_model_dir)

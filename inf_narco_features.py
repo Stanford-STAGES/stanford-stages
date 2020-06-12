@@ -101,6 +101,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
         rCount = 0
         rCountR = 0
         soremC = 0
+        '''
+        # The following was originally used, but found to be inconsistent with the described feature it implements.
         for i in range(SL, len(S)):
             if (S[i] == 0) | (S[i] == 1):
                 wCount += 1
@@ -109,6 +111,27 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 rCountR += 1
             elif rCount > 1:
                 soremC += 1
+            else:
+                wCount = 0
+                rCount = 0
+        '''
+
+        '''
+        Updated
+        This ensures we meet the criteria for a SOREMP and also takes care of counting the first epoch of REM of 
+        that SOREMP.  The manuscript code took care of the first epoch of REM but used too general of a description 
+        for a SOREMP (i.e. missed the minimum requirement of one minute of REM). 
+        '''
+        for i in range(SL, len(S)):
+            if (S[i] == 0) | (S[i] == 1):
+                wCount += 1
+            elif (S[i] == 4) & (wCount > 4):
+                rCount += 1
+                if rCount == 2:
+                    soremC += 1
+                    rCountR += 2
+                elif rCount > 2:
+                    rCountR += 1
             else:
                 wCount = 0
                 rCount = 0
