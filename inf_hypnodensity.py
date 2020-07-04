@@ -50,37 +50,6 @@ class Hypnodensity(object):
 
         self.encoded_data = []
         self.fs = int(app_config.fs)
-        # self.fs_high = app_config.fs_high
-        # self.fs_low = app_config.fs_low
-        # self.cc_size = app_config.cc_size
-        # self.channels = app_config.channels
-        # self.channels_used = app_config.channels_used
-        # self.loaded_channels = app_config.loaded_channels
-        # self.edf_filename: str = app_config.edf_filename
-
-    # @property
-    # def edf_filename(self):
-    #     return getattr(self.config, 'edf_filename', None)
-
-    # @property
-    # def loaded_channels(self):
-    #     return getattr(self.config, 'loaded_channels', None)
-    #
-    # @property
-    # def channels_used(self):
-    #     return getattr(self.config, 'channels_used', None)
-    #
-    # @property
-    # def channels(self):
-    #     return getattr(self.config, 'lights_on', None)
-    #
-    # @property
-    # def lights_off(self):
-    #     return getattr(self.config, 'lights_off', None)
-    #
-    # @property
-    # def lights_on(self):
-    #     return getattr(self.config, 'lights_on', None)
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
@@ -233,9 +202,23 @@ class Hypnodensity(object):
         return av
 
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
-    def get_hypnogram(self):
+    def get_hypnogram(self, epoch_len: int = 15):
+        '''
+
+        :param epoch_len: Length of hypnogram epoch.  Can be 15 or 30.  Default is 15 s epochs
+        :return:
+        '''
         hypno = self.get_hypnodensity()
+        if epoch_len == 30:
+            # Collapse
+            s = hypno.shape
+            if s[0] % 2:
+                # Add an extra row of zeros if we are short 15 s for a 30 s epoch
+                hypno = np.append(hypno, np.zeros(shape=(1, s[1]), dtype=hypno.dtype), axis=0)
+            hypno = hypno.reshape(-1, 2, hypno.shape[-1]).sum(1)
+
         hypnogram = np.argmax(hypno, axis=1)  # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+
         hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
         return hypnogram
 
