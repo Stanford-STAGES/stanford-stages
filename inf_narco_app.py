@@ -6,11 +6,12 @@
 inf_narco_biomarker --> inf_narco_app
 """
 import json  # for command line interface input and output.
-import os
-import sys
-import warnings
+import os, sys, warnings
+from pathlib import Path
+import logging
 # from asyncore import file_dispatcher
 from datetime import datetime
+from typing import Any, Union
 
 import gpflow as gpf
 # For hypnodensity plotting ...
@@ -19,17 +20,16 @@ import numpy as np
 # import pdb
 import tensorflow as tf
 from matplotlib.patches import Polygon
-
 from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
 from inf_hypnodensity import Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to
                                            # inf_hypnodensity.py
 
 # for auditing code speed.
-from pathlib import Path
 import time
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
-
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 DEBUG_MODE = False
 STANDARD_EPOCH_SEC = 30
 DEFAULT_SECONDS_PER_EPOCH = 30
@@ -42,6 +42,14 @@ NARCOLEPSY_PREDICTION_CUTOFF = -0.03
 DIAGNOSIS = ["Other", "Narcolepsy type 1"]
 
 
+class StanfordStagesError(Exception):
+    def __init__(self, message, edf_filename=''):
+        self.message = message
+        if isinstance(edf_filename, Path):
+            edf_filename = str(edf_filename)
+        self.edf_filename = edf_filename
+
+
 def main(edf_filename:str = None,
          config_input: {} = None, config_filename: str = None):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
 
@@ -51,17 +59,17 @@ def main(edf_filename:str = None,
     if config_input is None and config_filename is None:
         err_msg += "main() requires a configuration dictionary or filename as input in order to run\n"
     if err_msg != '':
-        raise Exception(err_msg)
+        raise StanfordStagesError(err_msg, edf_filename)
 
     # Application settings
     app_config = AppConfig()
-    app_config.edf_path = edf_filename
+    app_config.edf_filename = edf_filename
 
     # Update config_input with anything found in the json file that does not exist as a key value pair in the
     # config_input dictionary
     if config_filename is not None:
         if not Path(config_filename).is_file():
-            raise Exception(f"config_filename ({config_filename}) does not exist")
+            raise StanfordStagesError(f"config_filename ({config_filename}) does not exist", edf_filename)
         else:
             with open(config_filename, 'r') as fid:
                 json_dict = json.load(fid)
@@ -83,10 +91,10 @@ def main(edf_filename:str = None,
         'eogs': ('EOG-L', 'EOG-R'),
         'chin_emg': 'EMG'
     }
-    edf_path = Path(edf_filename)
-    output_path = Path(config_input.get("output_path", edf_path.parent))
+    edf_file: Path = Path(edf_filename)
+    output_path = Path(config_input.get("output_path", edf_file.parent))
 
-    model_dict = config_input.get("models", None)
+    model_dict = config_input.get("inf_config", None)
     if isinstance(model_dict, dict):
         keys_to_check = list(vars(app_config))
         for key in keys_to_check:
@@ -122,7 +130,7 @@ def main(edf_filename:str = None,
     hyp['save']['diagnosis'] = True
     hyp['save']['encoding'] = True
 
-    encoding_filename = output_path / (edf_path.stem + '.h5')
+    encoding_filename = output_path / (edf_file.stem + '.h5')
     hyp['filename']['pkl_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
     hyp['filename']['h5_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
     hyp['filename']['hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
@@ -232,15 +240,21 @@ def render_hypnodensity(hypnodensity, show_plot=False, save_plot=False, filename
 
 class NarcoApp(object):
 
+    edf_filename: Path
+    _hypnodensity: Hypnodensity
+
     def __init__(self, app_config):
 
         # appConfig is an instance of AppConfig class, defined in inf_config.py
         self.config = app_config
-        self.edf_path = app_config.edf_path  # full filename of an .EDF to use for header information.  A template .edf
+        self.edf_filename = app_config.edf_filename  # full filename of an .EDF to use for header information.  A template .edf
 
-        self.Hypnodensity = Hypnodensity(app_config)
+        self._hypnodensity = Hypnodensity(app_config)
         self.models_used = app_config.models_used
+        self.selected_features = app_config.narco_prediction_selected_features
         self.narcolepsy_probability = []
+        self.num_induction_points = 350
+
 
     def get_diagnosis(self):
         prediction = self.narcolepsy_probability
@@ -250,10 +264,10 @@ class NarcoApp(object):
                (prediction[0], DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)])
 
     def get_hypnodensity(self):
-        return self.Hypnodensity.get_hypnodensity()
+        return self._hypnodensity.get_hypnodensity()
 
     def get_hypnogram(self):
-        return self.Hypnodensity.get_hypnogram()
+        return self._hypnodensity.get_hypnogram()
 
     def save_diagnosis(self, filename=''):
         if filename == '':
@@ -286,69 +300,75 @@ class NarcoApp(object):
         return self.models_used
 
     def get_hypnodensity_features(self, model_name, idx):
-        return self.Hypnodensity.get_features(model_name, idx)
+        return self._hypnodensity.get_features(model_name, idx)
 
     def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
-        # Initialize dummy variables
-        num_subjects = 1
-        gpmodels = self.get_narco_gpmodels()
-        num_models = len(gpmodels)
+
+        scales = self.config.narco_prediction_scales
+        gp_models_base_path = self.config.narco_classifier_path
+        gp_models = {gp_model:os.path.join(gp_models_base_path, gp_model) for gp_model in self.get_narco_gpmodels() if
+                     os.path.exists(os.path.join(gp_models_base_path, gp_model))}
+        num_models = len(gp_models)
+        num_models_expected = len(self.get_narco_gpmodels())
+        if num_models == 0:
+            logger.error(f'No narcolepsy models found for prediction at "{gp_models_base_path}".  Check config file '
+                         f'or path.  Stopping!')
+            raise StanfordStagesError('No narcolepsy models found for prediction', self.edf_filename)
+        elif num_models != num_models_expected:
+            logger.error('Expecting %d models, but found %d models.  Check config file and path ("%s")',
+                         num_models_expected, num_models, gp_models_base_path)
+            raise StanfordStagesError('Unexpected number of narcolepsy prediction models.', self.edf_filename)
+
         num_folds = self.config.narco_prediction_num_folds
+
+        num_paths_expected = num_models * num_folds
+        paths_missing = []
+        for (gp_model, model_path) in gp_models.items():
+            for k in range(num_folds):
+                gp_model_fold_path = Path(model_path) / str(k)
+                if not Path(gp_model_fold_path).is_dir():
+                    paths_missing.append(str(gp_model_fold_path))
+
+        if len(paths_missing):
+            logger.error('Not all model fold paths were found: %d of %d were missing.  Check config file and subpaths '
+                         'of "%s".', len(paths_missing), num_paths_expected, gp_models_base_path)
+            for model_path in paths_missing:
+                print('Missing: '+model_path)
+            raise StanfordStagesError('Missing narcolepsy prediction models.', self.edf_filename)
+        num_subjects = 1
 
         mean_pred = np.zeros([num_subjects, num_models, num_folds])
         var_pred = np.zeros([num_subjects, num_models, num_folds])
+        kernel = gpf.kernels.SquaredExponential(len(self.selected_features), ard=True)
+        likelihood = gpf.likelihoods.Gaussian()
 
-        scales = self.config.narco_prediction_scales
-        gpmodels_base_path = self.config.narco_classifier_path
-
-        # config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
-        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True,))
-        # config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, ),
-        #                                   log_device_placement=True,)
-
-        # print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-
-        # tf.debugging.set_log_device_placement(True)
-
-        #  with tf.compat.v1.device('/GPU:0') as asif:
-        # m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU memory ...
-        #mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
-
-        config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True),
-                                          log_device_placement=False, )
-        for idx, gpmodel in enumerate(gpmodels):
+        for idx, (gpmodel, model_path) in enumerate(gp_models.items()):
             print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
-
             x = self.get_hypnodensity_features(gpmodel, idx)
-
             for k in range(num_folds):
-                # print('{} | Loading and predicting using {}'.format(datetime.now(), os.path.join(
-                # gpmodels_base_path, gpmodel, gpmodel + '_fold{:02}.gpm'.format(k+1))))
-                gp_model_filename = os.path.join(gpmodels_base_path, gpmodel,
-                                                 gpmodel + '_fold{:02}.gpm'.format(k + 1))
-                if not os.path.isfile(gp_model_filename):
-                    print(f'MISSING Model: {gp_model_filename}\n')
-                    continue
-                else:
-                    with tf.compat.v1.Graph().as_default() as graph:
-                        # config = tf.compat.v1.ConfigProto(
-                        #     gpu_options=tf.compat.v1.GPUOptions(allow_growth=True, visible_device_list='0'),
-                        #     log_device_placement=False, device_count={'GPU': 1, 'CPU': 16})
-                        #config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=False),
-                        #                                  log_device_placement=False, )
+                gp_model_fold_pathname = os.path.join(model_path, str(k))
 
-                        with tf.compat.v1.Session(
-                                config=config).as_default() as session:  # little gpu allocation and cuda usage
-                            m = gpf.saver.Saver().load(gp_model_filename)  # Allocates GPU resources
-                            # mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
-                            mean_pred[:, idx, k, np.newaxis], _ = m.predict_y(x)
+                if not os.path.isdir(gp_model_fold_pathname):
+                    raise StanfordStagesError(f'MISSING Model: {gp_model_fold_pathname}', self.edf_filename)
+                else:
+                    z = np.ones(shape=(self.num_induction_points, len(self.selected_features)), dtype=np.float64)
+                    m = gpf.models.SVGP(kernel=kernel, likelihood=likelihood, inducing_variable=z)
+                    ckpt = tf.train.Checkpoint(model=m)
+                    # ckpt.restore(load_path)
+                    manager = tf.train.CheckpointManager(ckpt, directory=gp_model_fold_pathname, max_to_keep=5)
+                    if manager.latest_checkpoint is None:
+                        raise StanfordStagesError('ModelCheckPointError: latest checkpoint could not be loaded',
+                                                  self.edf_filename)
+                    else:
+                        status = ckpt.restore(manager.latest_checkpoint).expect_partial()
+                    mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
 
         self.narcolepsy_probability = np.sum(np.multiply(np.mean(mean_pred, axis=2), scales), axis=1) / np.sum(scales)
         print(self.narcolepsy_probability[0])
         return self.narcolepsy_probability
 
     def eval_hypnodensity(self):
-        self.Hypnodensity.evaluate()
+        self._hypnodensity.evaluate()
 
     def eval_narcolepsy(self):
         self.get_narco_prediction()
@@ -363,15 +383,15 @@ if __name__ == '__main__':
 
     if sys.argv[1:]:  # if there are at least three arguments (two beyond [0])
 
-        edfFile = sys.argv[1]
+        _edf_filename = sys.argv[1]
 
         # For hard coding/bypassing json input argument, uncomment the following: jsonObj = json.loads('{
         # "channel_indices":{"centrals":[3,4],"occipitals":[5,6],"eog_l":7,"eog_r":8,"chin_emg":9},
         # "show":{"plot":false,"hypnodensity":false,"hypnogram":false}, "save":{"plot":false,"hypnodensity":true,
         # "hypnogram":true}}')
-        jsonObj = json.loads(sys.argv[2])
+        json_str = json.loads(sys.argv[2])
         try:
-            main(edfFile, jsonObj)
+            main(_edf_filename, json_str)
         except OSError as oserr:
             print("OSError:", oserr)
     else:

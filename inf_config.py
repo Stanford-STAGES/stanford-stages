@@ -1,9 +1,13 @@
 import os
+from typing import List, Any
+
 import numpy as np
 from pathlib import Path
 
 
 class AppConfig(object):
+
+    edf_file: Path
 
     def __init__(self):
 
@@ -23,8 +27,8 @@ class AppConfig(object):
         # Hypnodensity classification settings
         self.relevance_threshold = 1
         self.fs = np.array(100, dtype=float)
-        self.fsH = np.array(0.2, dtype=float)
-        self.fsL = np.array(49, dtype=float)
+        self.fs_high = np.array(0.2, dtype=float)
+        self.fs_low = np.array(49, dtype=float)
 
         # Wrapper hooks for auditing processing time of various parts of the app.
         self.audit = {'encoding': False, 'hypnodensity': False, 'diagnosis': False}
@@ -32,11 +36,11 @@ class AppConfig(object):
 
         # Size of cross correlation in seconds - so in samples this will be
         # sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
-        self.CCsize = {'C3':   2, 'C4':   2,  'O1':   2, 'O2':   2,
+        self.cc_size = {'C3':   2, 'C4':   2, 'O1':   2, 'O2':   2,
                        'EOG-L':4, 'EOG-R':4,
                        'EMG':  0.4,
                        'A1':   [], 'A2':   [],
-                       }
+                        }
 
         # self.CCsize = dict(zip(self.channels,
         #                [2,2,2,2,4,4,0.4,[],[]]))
@@ -60,10 +64,10 @@ class AppConfig(object):
         # self.hypnodensity_select_features_path = './ml/'
         # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
 
-        self.Kfold = 10  # or 20
-        self.edf_path = []
-        self.lightsOff = []
-        self.lightsOn = []
+        # self.Kfold = 10  # or 20
+        self.edf_file = None
+        self.lights_off = None
+        self.lights_on = None
 
         self.narco_prediction_num_folds = 5  # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,

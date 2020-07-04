@@ -24,25 +24,63 @@ from inf_tools import myprint, softmax
 from inf_narco_features import HypnodensityFeatures
 
 
+def config_property(name):
+    @property
+    def prop(self):
+        return getattr(self.config, name, None)
+    return prop
+
+
 class Hypnodensity(object):
+    edf_filename = config_property('edf_filename')
+    channels = config_property('channels')
+    channels_used = config_property('channels_used')
+    loaded_channels = config_property('loaded_channels')
+    lights_on = config_property('lights_on')
+    lights_off = config_property('lights_off')
+    fs_high = config_property('fs_high')
+    fs_low = config_property('fs_high')
+    cc_size = config_property('cc_size')
 
     def __init__(self, app_config):
         self.config = app_config
         self.hypnodensity = list()
-        self.Features = HypnodensityFeatures(app_config)
-        self.CCsize = app_config.CCsize
+        self.features = HypnodensityFeatures(app_config)
+        self.edf: pyedflib.EdfFileReader = []
 
-        self.channels = app_config.channels
-        self.channels_used = app_config.channels_used
-        self.loaded_channels = app_config.loaded_channels
-        self.edf_pathname = app_config.edf_path
-        self.encodedD = []
+        self.encoded_data = []
         self.fs = int(app_config.fs)
-        self.fsH = app_config.fsH
-        self.fsL = app_config.fsL
-        self.lightsOff = app_config.lightsOff
-        self.lightsOn = app_config.lightsOn
-        self.edf = []  # pyedflib.EdfFileReader
+        # self.fs_high = app_config.fs_high
+        # self.fs_low = app_config.fs_low
+        # self.cc_size = app_config.cc_size
+        # self.channels = app_config.channels
+        # self.channels_used = app_config.channels_used
+        # self.loaded_channels = app_config.loaded_channels
+        # self.edf_filename: str = app_config.edf_filename
+
+    # @property
+    # def edf_filename(self):
+    #     return getattr(self.config, 'edf_filename', None)
+
+    # @property
+    # def loaded_channels(self):
+    #     return getattr(self.config, 'loaded_channels', None)
+    #
+    # @property
+    # def channels_used(self):
+    #     return getattr(self.config, 'channels_used', None)
+    #
+    # @property
+    # def channels(self):
+    #     return getattr(self.config, 'lights_on', None)
+    #
+    # @property
+    # def lights_off(self):
+    #     return getattr(self.config, 'lights_off', None)
+    #
+    # @property
+    # def lights_on(self):
+    #     return getattr(self.config, 'lights_on', None)
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
@@ -87,12 +125,12 @@ class Hypnodensity(object):
             if in_a_pickle:
                 print(f"Pickle encode data to: {p}")
                 with p.open('wb') as fp:
-                    pickle.dump(self.encodedD, fp)
+                    pickle.dump(self.encoded_data, fp)
                 print(f"Encode data pickled to: {p}\n")
             else:
                 print("Not in a pickle!")
                 with h5py.File(p, 'w') as fp:
-                    fp['encodedD'] = self.encodedD
+                    fp['encodedD'] = self.encoded_data
                 self.myprint(".h5 exporting done")
             return True
         else:
@@ -105,10 +143,10 @@ class Hypnodensity(object):
             self.myprint('Loading previously saved encoded data')
             if in_a_pickle:
                 with p.open('rb') as fp:
-                    self.encodedD = pickle.load(fp)
+                    self.encoded_data = pickle.load(fp)
             else:
                 with h5py.File(p, 'r') as fp:
-                    self.encodedD = fp['encodedD'][()]
+                    self.encoded_data = fp['encodedD'][()]
             return True
         else:
             return False
@@ -191,6 +229,7 @@ class Hypnodensity(object):
             av += self.hypnodensity[i]
 
         av = np.divide(av, len(self.hypnodensity))
+
         return av
 
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
@@ -220,8 +259,8 @@ class Hypnodensity(object):
             # 'min to ensure we don't shoot past the data that we have.
 
         selected_features = self.config.narco_prediction_selected_features
-        x = self.Features.extract(_hypnodensity)
-        x = self.Features.scale_features(x, model_name)
+        x = self.features.extract(_hypnodensity)
+        x = self.features.scale_features(x, model_name)
         return x[selected_features].T
 
     def encoding(self):
@@ -263,31 +302,31 @@ class Hypnodensity(object):
 
         for c in self.channels_used:  # Central, Occipital, EOG-L, EOG-R, chin
             # append autocorrelations
-            enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.CCsize[c], 0.25, self.fs))
+            enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.cc_size[c], 0.25, self.fs))
 
         # Append eog cross correlation
-        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.CCsize['EOG-L'], 0.25,
+        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.cc_size['EOG-L'], 0.25,
                                self.fs))
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
         # Central, Occipital, EOG-L, EOG-R, EOG-L/R, chin
         enc = np.concatenate([enc[0], enc[1], enc[2], enc[3], enc[5], enc[4]], axis=0)
-        self.encodedD = enc
+        self.encoded_data = enc
 
-        # Needs double checking as magic numbers are problematic here and will vary based on configuration settings.
-        # @hyatt 11/12/2018 Currently, this is not supported as an input json parameter, but will need to adjust
-        # accordingly if this changes. Note: This extracts after the lightsOff epoch and before lightsOn epoch as
-        # python is 0-based, and assumes a segsize of 60.
-        if isinstance(self.lightsOff, int) and isinstance(self.lightsOn, int):
-            self.encodedD = self.encodedD[:, 4 * 30 * self.lightsOff:4 * 30 * self.lightsOn]
+        # Adjust for lights off/on
+        # fps = 4  # encoded data is sampled at 4 Hz, (i.e. a period of 0.25 s)
+        # if isinstance(self.lights_off, int) and isinstance(self.lights_on, int):
+        #     _encoded_data = self.encoded_data[:, fps * self.lights_off: fps * self.lights_on]
+        # else:
+        #     _encoded_data = self.encoded_data
 
     def loadEDF(self):
         if not self.edf:
             try:
-                self.edf = pyedflib.EdfReader(self.edf_pathname)
+                self.edf = pyedflib.EdfReader(self.edf_filename)
             except OSError as osErr:
-                print("OSError:", "Loading", self.edf_pathname)
+                print("OSError:", "Loading", self.edf_filename)
                 raise osErr
 
         for ch in self.channels:  # ['C3','C4','O1','O2','EOG-L','EOG-R','EMG','A1','A2']
@@ -325,8 +364,8 @@ class Hypnodensity(object):
 
     def loadHeader(self):
         if not self.edf:
-            print(self.edf_pathname)
-            self.edf = pyedflib.EdfReader(self.edf_pathname)
+            print(self.edf_filename)
+            self.edf = pyedflib.EdfReader(self.edf_filename)
 
         signal_labels = self.edf.getSignalLabels()
         return signal_labels
@@ -335,8 +374,8 @@ class Hypnodensity(object):
         self.myprint('Filtering remaining signals')
         fs = self.fs
 
-        Fh = signal.butter(5, self.fsH / (fs / 2), btype='highpass', output='ba')
-        Fl = signal.butter(5, self.fsL / (fs / 2), btype='lowpass', output='ba')
+        Fh = signal.butter(5, self.fs_high / (fs / 2), btype='highpass', output='ba')
+        Fl = signal.butter(5, self.fs_low / (fs / 2), btype='lowpass', output='ba')
 
         for ch, ch_idx in self.channels_used.items():
             # Fix for issue 9: https://github.com/Stanford-STAGES/stanford-stages/issues/9
@@ -344,7 +383,7 @@ class Hypnodensity(object):
                 self.myprint('Filtering {}'.format(ch))
                 self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
 
-                if fs > (2 * self.fsL):
+                if fs > (2 * self.fs_low):
                     self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch]).astype(
                         dtype=np.float32)
 
@@ -427,7 +466,7 @@ class Hypnodensity(object):
     def score_data(self):
         self.hypnodensity = list()
         for l in self.config.models_used:
-            hyp = self.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
+            hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
             # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
