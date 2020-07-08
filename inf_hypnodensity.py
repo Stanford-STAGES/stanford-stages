@@ -228,24 +228,19 @@ class Hypnodensity(object):
 
         return hypnogram
 
-    def get_features(self, model_name, idx, start_index: int = None, stop_index: int = None,
-                     cull_minutes_after_start: float = None, cull_minutes_before_start: float = None):
-        _hypnodensity = self.hypnodensity[idx]
-        # configuration is currently setup for 15 second epochs (magic).  segments are .25 second and we have 60 of them
-        rows_per_minute = 4
-        if cull_minutes_after_start is not None:
-            start_index = np.ceil(rows_per_minute * cull_minutes_after_start)
-        if cull_minutes_before_start is not None:
-            num_rows = _hypnodensity.shape[0]  # or this  way: np.shape(_hypnodensity)[0]
-            stop_index = num_rows - np.ceil(rows_per_minute * cull_minutes_after_start)  #
-        if stop_index is not None:
-            stop_index = int(stop_index)
-            _hypnodensity = _hypnodensity[:max(0, stop_index), :]
-        if start_index is not None:
-            start_index = int(start_index)
-            num_rows = _hypnodensity.shape[0]
-            _hypnodensity = _hypnodensity[min(num_rows-1, start_index):, :]  # -1 b/c 0-based indexing for start and
-            # 'min to ensure we don't shoot past the data that we have.
+    def get_features(self, model_name: str, idx: int):
+        """
+
+        :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
+        :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
+        :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
+        (idx) between [lights_out, lights_on).  Note: [inclusive, exclusive).  The end.
+        """
+        lights_out_epoch = self.config.get_lights_out_epoch()
+        lights_on_epoch = self.config.get_lights_on_epoch()
+        _hypnodensity = self.hypnodensity[idx, lights_out_epoch:lights_on_epoch, :]
+        # configuration is currently setup for 15 second epochs (magic).
+        # segments are .25 second and we have 60 of them
 
         selected_features = self.config.narco_prediction_selected_features
         x = self.features.extract(_hypnodensity)
