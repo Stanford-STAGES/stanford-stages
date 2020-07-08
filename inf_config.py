@@ -64,8 +64,9 @@ class AppConfig(object):
         # prior to the recording ending.  Leave values as None to include all data from the start of the
         # recording until the end of the reocrding, otherwise only the time between lights_off until
         # lights_on will be evaluated for hypnodensity features to be used in narcolepsy detection, and
-        # for sleep staging scoring.  Epochs outside of the lights off/on range will be given the
-        # numerical score of '7', which represents unscored periods.
+        # for sleep staging scoring.  Epochs outside lights off/on range and lights on epoch itself are
+        # scored as '7' in the hypnogram to indicate unscored epochs.  Similiarly, these epochs are
+        # excluded from the features extraction step that is used to predict narcolepsy.
         self.lights_off: int = None
         self.lights_on: int = None
 
@@ -79,6 +80,24 @@ class AppConfig(object):
                                                    390, 405, 450, 467, 468, 470, 474, 476, 477]
         # Set to False to minimize printed output.
         self.verbose: bool = True
+
+    def get_lights_out_epoch(self, epoch_len: int = 15):
+        return self.sec2epoch(self.lights_out, epoch_len)
+
+    def get_lights_on_epoch(self, epoch_len: int= 15):
+        return self.sec2epoch(self.lights_on, epoch_len)
+
+    @staticmethod
+    def sec2epoch(sec: int, epoch_len: int = 15):
+        # Translates an integer value in seconds to the equivalent epoch based on the radix epoch_len,
+        # which is also given in seconds.  This works here for negative values as well, which are assumed to be
+        # referenced from the end of the study, where a -1 sec would be the equivalent of -1 epoch,
+        # which includeds the last epoch of the study using python indexing (e.g. study[-1]).
+        # Returns None if sec is not entered or None
+        if sec is None:
+            return None
+        else:
+            return np.floor_divide(sec, epoch_len)
 
 
 # Define Config

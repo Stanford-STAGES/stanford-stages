@@ -208,13 +208,6 @@ class Hypnodensity(object):
         :return:
         """
 
-        def sec2epoch(sec: int, epoch_len: int = 15):
-            # Translates an integer value in seconds to the equivalent epoch based on the radix epoch_len,
-            # which is also given in seconds.  This works here for negative values as well, which are assumed to be
-            # referenced from the end of the study, where a -1 sec would be the equivalent of -1 epoch,
-            # which includeds the last epoch of the study using python indexing (e.g. study[-1])
-            return np.floor_divide(sec, epoch_len)
-
         hypno = self.get_hypnodensity()
         if epoch_len == 30:
             # The default is a 15 sec epoch, which is a segsize of 60 ...
@@ -227,7 +220,11 @@ class Hypnodensity(object):
 
         hypnogram = np.argmax(hypno, axis=1)  # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
 
+        lights_on_mask = np.ones(np.shape(hypnogram)) == 1
+        lights_on_mask[self.config.get_lights_out_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+
         hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
+        hypnogram[lights_on_mask] = 7  # 7 indicates no score
 
         return hypnogram
 
@@ -432,11 +429,11 @@ class Hypnodensity(object):
                 unused_ch = self.get_loudest_channel(['O1', 'O2'], meanV[occipitals_idx], covM[occipitals_idx])
                 del self.channels_used[unused_ch]
 
-    def get_loudest_channel(self, channelTags, meanV, covM):
-        noise = np.zeros(len(channelTags))
-        for [idx, ch] in enumerate(channelTags):
-            noise[idx] = self.channel_noise_level(ch, meanV, covM)
-        return channelTags[np.argmax(noise)]
+    def get_loudest_channel(self, channel_tags, mean_vec, cov_mat):
+        noise = np.zeros(len(channel_tags))
+        for [idx, ch] in enumerate(channel_tags):
+            noise[idx] = self.channel_noise_level(ch, mean_vec, cov_mat)
+        return channel_tags[np.argmax(noise)]
 
         # for ch in channelTags:
         #     noise = self.channel_noise_level(ch, meanV, covM)
@@ -445,13 +442,13 @@ class Hypnodensity(object):
         #         loudest_ch = ch
         # return loudest_ch
 
-    def channel_noise_level(self, channel_tag, meanV, covM):
+    def channel_noise_level(self, channel_tag, mean_vec, cov_mat):
         hjorth = Hypnodensity.extract_hjorth(self.loaded_channels[channel_tag], self.fs)
         noise_vec = np.zeros(hjorth.shape[1])
         for k in range(len(noise_vec)):
             M = hjorth[:, k][:, np.newaxis]
-            x = M - meanV[:, np.newaxis]
-            sigma = np.linalg.inv(covM)
+            x = M - mean_vec[:, np.newaxis]
+            sigma = np.linalg.inv(cov_mat)
             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
             return np.mean(noise_vec)
 
