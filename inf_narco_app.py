@@ -255,7 +255,6 @@ class NarcoApp(object):
         self.narcolepsy_probability = []
         self.num_induction_points = 350
 
-
     def get_diagnosis(self):
         prediction = self.narcolepsy_probability
         if not prediction:
@@ -284,7 +283,6 @@ class NarcoApp(object):
     def save_hypnogram(self, filename=''):
         if filename == '':
             filename = change_file_extension(self.edf_path, '.hypnogram.txt')
-
         hypno = self.get_hypnogram()
         np.savetxt(filename, hypno, delimiter=",", fmt='%i')
 

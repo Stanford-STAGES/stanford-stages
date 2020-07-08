@@ -199,15 +199,25 @@ class Hypnodensity(object):
 
         av = np.divide(av, len(self.hypnodensity))
 
+        lights_on_mask = np.ones([av.shape[0], 1]) == 1
+        epoch_len = 15
+        lights_on_mask[self.config.get_lights_out_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+        av[lights_on_mask, :] = np.nan
+
         return av
 
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self, epoch_len: int = 15):
         """
         :param epoch_len: Length of hypnogram epoch.  Can be 15 or 30.  Default is 15 s epochs
-        :return:
+        :return: hypnogram vector codified as
+         0 - wake
+         1 - stage 1 sleep
+         2 - stage 2 sleep
+         3 - stage 3/4 sleep
+         5 - rapid eye movement sleep
+         7 - unscored (artifact or lights on)
         """
-
         hypno = self.get_hypnodensity()
         if epoch_len == 30:
             # The default is a 15 sec epoch, which is a segsize of 60 ...
@@ -218,19 +228,19 @@ class Hypnodensity(object):
             # Collapse
             hypno = hypno.reshape(-1, 2, hypno.shape[-1]).sum(1)
 
-        hypnogram = np.argmax(hypno, axis=1)  # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+        # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
+        hypnogram = np.argmax(hypno, axis=1)
 
-        lights_on_mask = np.ones(np.shape(hypnogram)) == 1
-        lights_on_mask[self.config.get_lights_out_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+        # Change 4 to 5 to keep with the conventional REM indicator
+        hypnogram[hypnogram == 4] = 5
 
-        hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
-        hypnogram[lights_on_mask] = 7  # 7 indicates no score
-
+        # Use '7' to identify unstaged.  This occurs where there are nan (not-a-number) values.  nan results when
+        # there is more than 5 minutes of flat line data and also when the lights are on.
+        hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
     def get_features(self, model_name: str, idx: int):
         """
-
         :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
         :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
