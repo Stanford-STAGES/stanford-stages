@@ -203,23 +203,32 @@ class Hypnodensity(object):
 
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self, epoch_len: int = 15):
-        '''
-
+        """
         :param epoch_len: Length of hypnogram epoch.  Can be 15 or 30.  Default is 15 s epochs
         :return:
-        '''
+        """
+
+        def sec2epoch(sec: int, epoch_len: int = 15):
+            # Translates an integer value in seconds to the equivalent epoch based on the radix epoch_len,
+            # which is also given in seconds.  This works here for negative values as well, which are assumed to be
+            # referenced from the end of the study, where a -1 sec would be the equivalent of -1 epoch,
+            # which includeds the last epoch of the study using python indexing (e.g. study[-1])
+            return np.floor_divide(sec, epoch_len)
+
         hypno = self.get_hypnodensity()
         if epoch_len == 30:
-            # Collapse
+            # The default is a 15 sec epoch, which is a segsize of 60 ...
             s = hypno.shape
             if s[0] % 2:
                 # Add an extra row of zeros if we are short 15 s for a 30 s epoch
                 hypno = np.append(hypno, np.zeros(shape=(1, s[1]), dtype=hypno.dtype), axis=0)
+            # Collapse
             hypno = hypno.reshape(-1, 2, hypno.shape[-1]).sum(1)
 
         hypnogram = np.argmax(hypno, axis=1)  # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 4 is REM
 
         hypnogram[hypnogram == 4] = 5  # Change 4 to 5 to keep with the conventional REM indicator
+
         return hypnogram
 
     def get_features(self, model_name, idx, start_index: int = None, stop_index: int = None,

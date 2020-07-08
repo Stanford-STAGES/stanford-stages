@@ -6,11 +6,9 @@ from pathlib import Path
 
 
 class AppConfig(object):
-
     edf_file: Path
 
     def __init__(self):
-
         # Model folder
         self.models_used = ['ac_rh_ls_lstm_01', 'ac_rh_ls_lstm_02',
                             'ac_rh_ls_lstm_03', 'ac_rh_ls_lstm_04',
@@ -36,14 +34,12 @@ class AppConfig(object):
 
         # Size of cross correlation in seconds - so in samples this will be
         # sum([200 200 400 400 40 ]) == 1240 + 400 for EOGLR == 1640
-        self.cc_size = {'C3':   2, 'C4':   2, 'O1':   2, 'O2':   2,
-                       'EOG-L':4, 'EOG-R':4,
-                       'EMG':  0.4,
-                       'A1':   [], 'A2':   [],
+        self.cc_size = {'C3': 2, 'C4': 2, 'O1': 2, 'O2': 2,
+                        'EOG-L': 4, 'EOG-R': 4,
+                        'EMG': 0.4,
+                        'A1': [], 'A2': [],
                         }
 
-        # self.CCsize = dict(zip(self.channels,
-        #                [2,2,2,2,4,4,0.4,[],[]]))
         self.channels_used = dict.fromkeys(self.channels)
         self.loaded_channels = dict.fromkeys(self.channels)
 
@@ -58,16 +54,20 @@ class AppConfig(object):
         self.hypnodensity_scale_path = 'F:/ml/scaling/'
 
         # Related to classifying narcolepsy from hypnodensity features
-        self.narco_classifier_path = str(this_path.joinpath('ml/gp/'))
-        # self.narco_classifier_path = str('F:/ml/gp/')
+        self.narco_classifier_path: str = str(this_path.joinpath('ml/gp/'))
 
-        # self.hypnodensity_select_features_path = './ml/'
-        # self.hypnodensity_select_features_pickle_name = 'narcoFeatureSelect.p'
-
-        # self.Kfold = 10  # or 20
         self.edf_file = None
-        self.lights_off = None
-        self.lights_on = None
+
+        # lights off and on indicate the number of seconds from the start of the psg recording until the
+        # "lights off" and "lights on" events for a formal psg recording.  Negative values indicate time
+        # elapsed from the end of the study.  For example: lights_on=-1 means the lights were turned on 1 s
+        # prior to the recording ending.  Leave values as None to include all data from the start of the
+        # recording until the end of the reocrding, otherwise only the time between lights_off until
+        # lights_on will be evaluated for hypnodensity features to be used in narcolepsy detection, and
+        # for sleep staging scoring.  Epochs outside of the lights off/on range will be given the
+        # numerical score of '7', which represents unscored periods.
+        self.lights_off: int = None
+        self.lights_on: int = None
 
         self.narco_prediction_num_folds = 5  # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
@@ -95,17 +95,12 @@ class Config(object):
         return object.__getattribute__(self, itemname)
 
     def __init__(self, scope, num_features, num_hidden, segsize, lstm, num_classes, batch_size, max_train_len, atonce,
-                 restart=True, model_name='small_lstm', is_train=False,
-                 root_model_dir='./',  # Change this if models are saved elsewhere
-                ):
+                 restart=True, model_name='small_lstm', is_train=False, root_model_dir='./'):
 
         self.hypnodensity_model_dir = os.path.join(root_model_dir, scope, model_name)
-
-        # Data
-
-        # Configuration
         self.model_name = model_name
         self.scope = scope
+
         self.is_training = is_train
         self.num_features = num_features
         self.num_classes = num_classes
@@ -132,7 +127,7 @@ class Config(object):
 # Now we can pass Config to ACConfig for construction; inheritence.
 class ACConfig(Config):
 
-    def __init__(self, restart=True, model_name='ac_rh_ls_lstm_01', is_training=False, root_model_dir = './'):
+    def __init__(self, restart=True, model_name='ac_rh_ls_lstm_01', is_training=False, root_model_dir='./'):
 
         print('model: ' + model_name)
         if model_name[3:5] == 'lh':
@@ -146,7 +141,7 @@ class ACConfig(Config):
 
         if model_name[6:8] == 'ls':
             segsize = 60
-            atonce = 1000 # 2 batches, runs out of memory though :(
+            atonce = 1000  # 2 batches, runs out of memory though :(
             # atonce = 1500  #
             # atonce = 600 # 173 seconds
             # atonce = 500  # 154 seconds
@@ -172,7 +167,7 @@ class ACConfig(Config):
         if is_training:
             batch_size = 30
         else:
-            batch_size = 1 # had been 1
+            batch_size = 1
 
         scope = 'ac'
         num_features = 1640
