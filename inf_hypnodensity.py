@@ -434,6 +434,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
     def extract(self, hyp):
         eps = 1e-10
+        hyp = hyp[~np.isnan(hyp[:, 0]), :]  # or np.invert(np.isnan(hyp[:, 0])
         features = np.zeros([24 + 31 * 15])
         j = -1
         f = 10
