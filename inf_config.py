@@ -67,8 +67,8 @@ class AppConfig(object):
         # for sleep staging scoring.  Epochs outside lights off/on range and lights on epoch itself are
         # scored as '7' in the hypnogram to indicate unscored epochs.  Similiarly, these epochs are
         # excluded from the features extraction step that is used to predict narcolepsy.
-        self.lights_off: int = None
-        self.lights_on: int = None
+        self._lights_off: int = None
+        self._lights_on: int = None
 
         self.narco_prediction_num_folds = 5  # for the gp narco classifier
         self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
@@ -81,8 +81,28 @@ class AppConfig(object):
         # Set to False to minimize printed output.
         self.verbose: bool = True
 
-    def get_lights_out_epoch(self, epoch_len: int = 15):
-        return self.sec2epoch(self.lights_out, epoch_len)
+    @property
+    def lights_off(self):
+        return self._lights_off
+
+    @lights_off.setter
+    def lights_off(self, value: int):
+        if isinstance(value, str):
+            value = int(value)
+        self._lights_off = value
+
+    @property
+    def lights_on(self):
+        return self._lights_on
+
+    @lights_on.setter
+    def lights_on(self, value: int):
+        if isinstance(value, str):
+            value = int(value)
+        self._lights_on = value
+
+    def get_lights_off_epoch(self, epoch_len: int = 15):
+        return self.sec2epoch(self.lights_off, epoch_len)
 
     def get_lights_on_epoch(self, epoch_len: int= 15):
         return self.sec2epoch(self.lights_on, epoch_len)
@@ -97,7 +117,7 @@ class AppConfig(object):
         if sec is None:
             return None
         else:
-            return np.floor_divide(sec, epoch_len)
+            return sec // epoch_len # np.floor_divide(sec, epoch_len)
 
 
 # Define Config

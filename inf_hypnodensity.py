@@ -200,8 +200,8 @@ class Hypnodensity(object):
         av = np.divide(av, len(self.hypnodensity))
 
         lights_on_mask = np.ones([av.shape[0], 1]) == 1
-        epoch_len = 15
-        lights_on_mask[self.config.get_lights_out_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+        epoch_len: int = 15
+        lights_on_mask[self.config.get_lights_off_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
         av[lights_on_mask, :] = np.nan
 
         return av
@@ -244,11 +244,11 @@ class Hypnodensity(object):
         :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
         :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
-        (idx) between [lights_out, lights_on).  Note: [inclusive, exclusive).  The end.
+        (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
-        lights_out_epoch = self.config.get_lights_out_epoch()
+        lights_off_epoch = self.config.get_lights_off_epoch()
         lights_on_epoch = self.config.get_lights_on_epoch()
-        _hypnodensity = self.hypnodensity[idx, lights_out_epoch:lights_on_epoch, :]
+        _hypnodensity = self.hypnodensity[idx, lights_off_epoch:lights_on_epoch, :]
         # configuration is currently setup for 15 second epochs (magic).
         # segments are .25 second and we have 60 of them
 
