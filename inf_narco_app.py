@@ -132,11 +132,13 @@ def main(edf_filename:str = None,
     hyp = {'show': {}, 'save': {}, 'filename': {}}
     hyp['show']['plot'] = False
     hyp['show']['hypnogram'] = False
+    hyp['show']['hypnogram_30_sec'] = False
     hyp['show']['hypnodensity'] = False
     hyp['show']['diagnosis'] = True
 
     hyp['save']['plot'] = True
     hyp['save']['hypnogram'] = True
+    hyp['save']['hypnogram_30_sec'] = True
     hyp['save']['hypnodensity'] = True
     hyp['save']['diagnosis'] = True
     hyp['save']['encoding'] = True
@@ -146,6 +148,7 @@ def main(edf_filename:str = None,
     hyp['filename']['h5_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
     hyp['filename']['hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(encoding_filename, '.hypnogram.txt')
+    hyp['filename']['hypnogram_30_sec'] = change_file_extension(encoding_filename, '.hypnogram.sta')
     hyp['filename']['diagnosis'] = change_file_extension(encoding_filename, '.diagnosis.txt')
     hyp['filename']['plot'] = change_file_extension(encoding_filename, '.hypnodensity.png')
     hyp['filename']['encoding'] = encoding_filename
@@ -173,9 +176,10 @@ def main(edf_filename:str = None,
     app_config.saveEncoding = hyp['save']['encoding']
     app_config.saveHypnodensity = hyp['save']['hypnodensity']
     app_config.encodeFilename = hyp['filename']['encoding']
-    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['show']['hypnodensity'] or hyp['save']['hypnogram'] or
-                                 hyp['save']['hypnodensity'] or hyp['show']['diagnosis'] or hyp['save']['diagnosis'] or
-                                 hyp['show']['plot'] or hyp['save']['plot'])
+    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['save']['hypnogram'] or hyp['show']['hypnogram_30_sec']
+                                 or hyp['save']['hypnogram_30_sec'] or hyp['save']['hypnodensity']
+                                 or hyp['show']['hypnodensity'] or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
+                                 or hyp['show']['plot'] or hyp['save']['plot'])
 
     narco_app = NarcoApp(app_config)
     # narcoApp.eval_all()
@@ -190,9 +194,18 @@ def main(edf_filename:str = None,
         np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
         print(hypnogram)
 
+    if hypno_config['show']['hypnogram_30_sec']:
+        print("Hypnogram (30 second epochs):")
+        hypnogram = narco_app.get_hypnogram(epoch_len=30)
+        np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
+        print(hypnogram)
+
     # This is the text portion
     if hypno_config['save']['hypnogram']:
         narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram'])
+
+    if hypno_config['save']['hypnogram_30_sec']:
+        narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram_sta'])
 
     if hypno_config['show']['hypnogram']:
         print("Hypnodensity:")
@@ -280,8 +293,8 @@ class NarcoApp(object):
     def get_hypnodensity(self):
         return self._hypnodensity.get_hypnodensity()
 
-    def get_hypnogram(self):
-        return self._hypnodensity.get_hypnogram()
+    def get_hypnogram(self, epoch_len: int = 15):
+        return self._hypnodensity.get_hypnogram(epoch_len)
 
     def save_diagnosis(self, filename=''):
         if filename == '':
@@ -295,10 +308,16 @@ class NarcoApp(object):
         hypno = self.get_hypnodensity()
         np.savetxt(filename, hypno, delimiter=",")
 
-    def save_hypnogram(self, filename=''):
+    def save_hypnogram(self, filename='', epoch_len: int = 15):
+
         if filename == '':
-            filename = change_file_extension(self.edf_path, '.hypnogram.txt')
-        hypno = self.get_hypnogram()
+            if epoch_len == 30:
+                # for 30 second epochs
+                filename = change_file_extension(self.edf_path, '.hypnogram.sta')
+            else:
+                filename = change_file_extension(self.edf_path, '.hypnogram.txt')
+
+        hypno = self.get_hypnogram(epoch_len)
         np.savetxt(filename, hypno, delimiter=",", fmt='%i')
 
     def audit(self, method_to_audit, audit_label, *args):
