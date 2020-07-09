@@ -248,7 +248,8 @@ class Hypnodensity(object):
         """
         lights_off_epoch = self.config.get_lights_off_epoch()
         lights_on_epoch = self.config.get_lights_on_epoch()
-        _hypnodensity = self.hypnodensity[idx, lights_off_epoch:lights_on_epoch, :]
+        # self.hypnodensity is a list of numpy arrays.
+        _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
         # configuration is currently setup for 15 second epochs (magic).
         # segments are .25 second and we have 60 of them
 
