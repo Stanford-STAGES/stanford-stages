@@ -455,7 +455,7 @@ class Hypnodensity(object):
             x = M - mean_vec[:, np.newaxis]
             sigma = np.linalg.inv(cov_mat)
             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
-        return np.mean(noise_vec)
+        return np.nanmean(noise_vec)  # ignore nan's which may pop up from hjorth calculation
 
     def score_data(self):
         self.hypnodensity = list()
