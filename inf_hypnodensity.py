@@ -199,7 +199,7 @@ class Hypnodensity(object):
 
         av = np.divide(av, len(self.hypnodensity))
 
-        lights_on_mask = np.ones([av.shape[0], 1]) == 1
+        lights_on_mask = np.ones(av.shape[0]) == 1
         epoch_len: int = 15
         lights_on_mask[self.config.get_lights_off_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
         av[lights_on_mask, :] = np.nan
