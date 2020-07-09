@@ -97,6 +97,16 @@ def main(edf_filename:str = None,
     model_dict = config_input.get("inf_config", None)
     if isinstance(model_dict, dict):
         keys_to_check = list(vars(app_config))
+        # Add these properties
+        properties = ['lights_off', 'lights_on']
+        for prop in properties:
+            if prop not in keys_to_check:
+                keys_to_check.append(prop)
+        # if 'lights_off' not in keys_to_check:
+        #     keys_to_check.append('lights_off')
+        # if 'lights_on' not in keys_to_check:
+        #     keys_to_check.append('lights_on')
+
         for key in keys_to_check:
             if key in model_dict and key != 'channels_used':
                 value = model_dict[key]
@@ -118,6 +128,7 @@ def main(edf_filename:str = None,
     # app_config.lightsOn = config_input.get('lightsOn', [])
     # app_config.audit.update(config_input.get('audit',{}))
 
+    # These are updated below based on the config_input
     hyp = {'show': {}, 'save': {}, 'filename': {}}
     hyp['show']['plot'] = False
     hyp['show']['hypnogram'] = False
@@ -141,12 +152,14 @@ def main(edf_filename:str = None,
     hyp['filename']['pkl_encoding'] = None
     hyp['filename']['h5_encoding'] = None
     hyp['filename']['audit'] = None
-
     # hyp['filename']['encoding'] = change_file_extension(edf_filename, '.h5')
 
-    hyp['save'].update(config_input.get('save', {}))
-    hyp['show'].update(config_input.get('show', {}))
-    hyp['filename'].update(config_input.get('filename', {}))
+    for key in hyp.keys():
+        hyp[key].update(config_input.get(key, {}))
+
+    # hyp['save'].update(config_input.get('save', {}))
+    # hyp['show'].update(config_input.get('show', {}))
+    # hyp['filename'].update(config_input.get('filename', {}))
 
     hypno_config = hyp
 
@@ -209,6 +222,8 @@ def change_file_extension(fullname, new_extension):
 def render_hypnodensity(hypnodensity, show_plot=False, save_plot=False, filename='tmp.png'):
 
     if show_plot or save_plot:
+        # Remove any rows with nan values
+        hypnodensity = hypnodensity[~np.isnan(hypnodensity[:, 0]), :]
         fig, ax = plt.subplots(figsize=[11, 5])
         av = np.cumsum(hypnodensity, axis=1)
         c = [[0.90, 0.19, 0.87],  # pink
