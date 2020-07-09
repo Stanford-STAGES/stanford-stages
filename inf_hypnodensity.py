@@ -455,7 +455,7 @@ class Hypnodensity(object):
             x = M - mean_vec[:, np.newaxis]
             sigma = np.linalg.inv(cov_mat)
             noise_vec[k] = np.sqrt(np.dot(np.dot(np.transpose(x), sigma), x))
-            return np.mean(noise_vec)
+        return np.mean(noise_vec)
 
     def score_data(self):
         self.hypnodensity = list()
@@ -480,7 +480,7 @@ class Hypnodensity(object):
         slide = slide * fs
 
         # Creates 2D array of overlapping segments
-        D = skimage.util.view_as_windows(x, dim, dim).T
+        D = skimage.util.view_as_windows(x, dim, slide).T
 
         # Extract Hjorth params for each segment
         dD = np.diff(D, 1, axis=0)
