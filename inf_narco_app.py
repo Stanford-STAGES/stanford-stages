@@ -205,9 +205,9 @@ def main(edf_filename:str = None,
         narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram'])
 
     if hypno_config['save']['hypnogram_30_sec']:
-        narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram_sta'])
+        narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram_30_sec'], epoch_len=30)
 
-    if hypno_config['show']['hypnogram']:
+    if hypno_config['show']['hypnodensity']:
         print("Hypnodensity:")
         hypnodensity = narco_app.get_hypnodensity()
         np.set_printoptions(threshold=10000*5, linewidth=150)
