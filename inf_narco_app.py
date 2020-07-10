@@ -50,7 +50,7 @@ class StanfordStagesError(Exception):
         self.edf_filename = edf_filename
 
 
-def main(edf_filename:str = None,
+def main(edf_filename: str = None,
          config_input: {} = None, config_filename: str = None):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
 
     err_msg = ''
@@ -225,6 +225,10 @@ def main(edf_filename:str = None,
     if not app_config.encodeOnly:
         render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
                             save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
+
+    if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
+        prediction = narco_app.narcolepsy_probability[0]
+        return prediction, DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
 
 
 def change_file_extension(fullname, new_extension):
