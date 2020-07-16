@@ -81,15 +81,22 @@ class AppConfig(object):
         # Set to False to minimize printed output.
         self.verbose: bool = True
 
+    @staticmethod
+    def str2int(value):
+        if isinstance(value, str):
+            try:
+                value = int(value)
+            except ValueError:
+                value = None
+        return value
+
     @property
     def lights_off(self):
         return self._lights_off
 
     @lights_off.setter
     def lights_off(self, value: int):
-        if isinstance(value, str):
-            value = int(value)
-        self._lights_off = value
+        self._lights_off = self.str2int(value)
 
     @property
     def lights_on(self):
@@ -97,9 +104,7 @@ class AppConfig(object):
 
     @lights_on.setter
     def lights_on(self, value: int):
-        if isinstance(value, str):
-            value = int(value)
-        self._lights_on = value
+        self._lights_on = self.str2int(value)
 
     def get_lights_off_epoch(self, epoch_len: int = 15):
         return self.sec2epoch(self.lights_off, epoch_len)

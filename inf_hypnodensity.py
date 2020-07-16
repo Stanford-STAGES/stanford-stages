@@ -39,7 +39,7 @@ class Hypnodensity(object):
     lights_on = config_property('lights_on')
     lights_off = config_property('lights_off')
     fs_high = config_property('fs_high')
-    fs_low = config_property('fs_high')
+    fs_low = config_property('fs_low')
     cc_size = config_property('cc_size')
 
     def __init__(self, app_config):

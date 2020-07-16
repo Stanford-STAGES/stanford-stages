@@ -228,7 +228,14 @@ def main(edf_filename: str = None,
 
     if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
         prediction = narco_app.narcolepsy_probability[0]
-        return prediction, DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
+        diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
+        logger.debug('Score:  %0.4f.  Diagnosis: %s', prediction, diagnosis)
+    else:
+        prediction = None
+        diagnosis = None
+
+    return prediction, diagnosis
+
 
 
 def change_file_extension(fullname, new_extension):
