@@ -45,9 +45,31 @@ class Hypnodensity(object):
     def __init__(self, app_config):
         self.config = app_config
         self.hypnodensity = list()
+        self.flatline = []
         self.features = HypnodensityFeatures(app_config)
         self.edf: pyedflib.EdfFileReader = []
 
+        '''
+        encoded_data is a 1640 x N array (np.array)
+        Rows represent stacked cross correlation values.
+        The order is: Central, Occipital, EOG-L, EOG-R, EOG-L/R, and then chin
+        The size of the cross correlation value is specied by app_config.cc_ssize, with a default of
+        2s (central), 2s (occipital), 4s, 4s, 4s (eog's), and 0.4s (chin).
+        Each column, represents a 0.250 s lapse or shift in time from the start of the psg (i.e. t0 = 0.0s)
+        Because the psg channels are resampled to 100 Hz, the PSG channels can be sliced as follows:
+         Central - 0:199
+         Occipital - 200:399
+         EOG-L - 400:799
+         EOG-R - 800:1199
+         EOG-L/R - 1200:1599
+         Chin - 1600:1639
+        N can be determined as follows:
+        N = (D-(max(cc_size)-delta_lapse))/delta_lapse
+            where D is the maximum duration of the PSG in seconds which can be divided by 30 without giving a remainder,
+            max(cc_size) is 4 s, and delta_lapse is 0.25s.
+        N = (D-3.75)*4 
+        Thus if a PSG is 30980s, then D = 30960 and N = 123825                 
+        '''
         self.encoded_data = []
         self.fs = int(app_config.fs)
 
@@ -455,11 +477,19 @@ class Hypnodensity(object):
 
     def score_data(self):
         self.hypnodensity = list()
+
+        # identify flat line
+        self.identify_flatline()
         for l in self.config.models_used:
             hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
             # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
             self.hypnodensity.append(hyp)
+
+    def identify_flatline(self):
+
+        self.encoded_data
+        self.flatline = 0
 
     def myprint(self, string, *args):
         if self.config.verbose:
