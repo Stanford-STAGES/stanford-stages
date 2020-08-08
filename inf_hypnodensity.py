@@ -28,6 +28,7 @@ def config_property(name):
     @property
     def prop(self):
         return getattr(self.config, name, None)
+
     return prop
 
 
@@ -71,6 +72,20 @@ class Hypnodensity(object):
         Thus if a PSG is 30980s, then D = 30960 and N = 123825                 
         '''
         self.encoded_data = []
+        self._encoded_data_channel_slices = {'central': range(0, 200),
+                                             'occipital': range(200, 400),
+                                             'eog-l': range(400, 800),
+                                             'eog-r': range(800, 1200),
+                                             'eog-lr': range(1200, 1600),
+                                             'chin': range(1600, 1640)}
+
+        self._encoded_data_channel_offsets = {'central': 0,
+                                              'occipital': 200,
+                                              'eog-l': 400,
+                                              'eog-r': 800,
+                                              'eog-lr': 1200,
+                                              'chin': 1600}
+
         self.fs = int(app_config.fs)
 
     def audit(self, method_to_audit, audit_label, *args):
@@ -283,7 +298,6 @@ class Hypnodensity(object):
     def encoding(self):
 
         def encode_data(x1, x2, dim, slide, fs):
-
             # Length of the first dimension and overlap of segments
             dim = int(fs * dim)
             slide = int(fs * slide)
@@ -322,8 +336,9 @@ class Hypnodensity(object):
             enc.append(encode_data(self.loaded_channels[c], self.loaded_channels[c], self.cc_size[c], 0.25, self.fs))
 
         # Append eog cross correlation
-        enc.append(encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.cc_size['EOG-L'], 0.25,
-                               self.fs))
+        enc.append(
+            encode_data(self.loaded_channels['EOG-L'], self.loaded_channels['EOG-R'], self.cc_size['EOG-L'], 0.25,
+                        self.fs))
         min_length = np.min([x.shape[1] for x in enc])
         enc = [v[:, :min_length] for v in enc]
 
@@ -480,21 +495,60 @@ class Hypnodensity(object):
 
         # identify flat line
         self.identify_flatline()
+        flatline_15_sec = [self.epoch_rebase(x, 0.25, 15) for x in self.flatline]
         for l in self.config.models_used:
             hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
             # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
+            # remove any sections identified with flatline
+            for flatline_start_stop in flatline_15_sec:
+                hyp[flatline_start_stop[0]:flatline_15_sec[1], :] = np.nan
+
             self.hypnodensity.append(hyp)
 
     def identify_flatline(self):
+        self.flatline = []
+        bad_values = np.any(np.logical_or(np.isnan(self.encoded_data), np.isinf(self.encoded_data)), axis=0)
 
-        self.encoded_data
-        self.flatline = 0
+        # Another approach is to string together 2.5 segments from each channel.
+        # _flatline = np.tile(False, self.encoded_data.shape[1])
+        #for offset in _encoded_data_channel_offsets.values():
+        #    channel_slice = self.encoded_data[offset]
+        #    _flatline = np.logical_or(_flatline, np.logical_or(np.isnan(channel_slice), np.isinf(channel_slice)))
+
+        if any(bad_values):
+            true_count = 0
+            count_threshold = 30 / 2.5  # reject 30s or more of flatline.  encoded_data values come in 2.5s segments.
+            for index, value in enumerate(bad_values):
+                if value:
+                    true_count = true_count + 1
+                elif true_count > 0:
+                    if true_count >= count_threshold:
+                        # -1 because we don't include the current index which is false.
+                        self.flatline.append(np.array([index-true_count-1, index-1]))
+                    true_count = 0
+            # Handle case of finishing with flat line data
+            if true_count >= count_threshold:
+                # NO -1 because we will include the most recent index since, which was positive.
+                self.flatline.append(np.array([index - true_count, index]))
 
     def myprint(self, string, *args):
         if self.config.verbose:
             myprint(string, *args)
 
+    @staticmethod
+    def epoch_rebase(e, source_base_sec, new_base_sec):
+        '''
+        Rebase the epoch index e using the new base provided.
+        :param e: The epoch index to rebase.
+        :param source_base_sec: The number of seconds used for the base of e
+        :param new_base_sec: The new base to rebase e to.
+        :return: e with base of new_base_sec
+        '''
+        #e_1_sec_base = e*source_base_sec
+        #e_new_base_sec = e_1_sec_base // new_base_sec
+        #return e_new_base_sec
+        return (e*source_base_sec) // new_base_sec
     # Use 5 minute sliding window.
     @staticmethod
     def extract_hjorth(x, fs, dim=5 * 60, slide=5 * 60):
@@ -570,7 +624,7 @@ class Hypnodensity(object):
             m = SCModel(ac_config)
             s = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
 
-            print("AC config hypnodensity path",ac_config.hypnodensity_model_dir)
+            print("AC config hypnodensity path", ac_config.hypnodensity_model_dir)
             # config = tf.compat.v1.ConfigProto(log_device_placement=False, device_count={'GPU': 0}) # For cpu only operations
             config = tf.compat.v1.ConfigProto(log_device_placement=False)
             # config = tf.ConfigProto()
@@ -588,7 +642,8 @@ class Hypnodensity(object):
                 dat, Nextra, prediction, num_batches = Hypnodensity.segment(dat, ac_config)
                 for i in range(num_batches):
                     x = dat[:, i * ac_config.eval_nseg_atonce * ac_config.segsize:(i + 1) *
-                            ac_config.eval_nseg_atonce * ac_config.segsize, :]
+                                                                                  ac_config.eval_nseg_atonce * ac_config.segsize,
+                        :]
 
                     est, state = session.run([m.logits, m.final_state], feed_dict={
                         m.features: x,
