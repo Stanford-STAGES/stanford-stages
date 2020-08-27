@@ -16,12 +16,14 @@ import numpy as np
 import pyedflib
 import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
-from scipy.fftpack import fft, ifft, irfft, fftshift
+from scipy.fftpack import fft, ifft, fftshift
 import tensorflow as tf
 from inf_config import ACConfig
 from inf_network import SCModel
 from inf_tools import myprint, softmax
 from inf_narco_features import HypnodensityFeatures
+# import csv.reader
+from pandas import read_csv
 
 
 def config_property(name):
@@ -261,7 +263,8 @@ class Hypnodensity(object):
             s = hypno.shape
             if s[0] % 2:
                 # Add an extra row of zeros if we are short 15 s for a 30 s epoch
-                hypno = np.append(hypno, np.zeros(shape=(1, s[1]), dtype=hypno.dtype), axis=0)
+                hypno = np.append(hypno, np.tile(np.nan, [1, s[1]]), axis=0)
+                # hypno = np.append(hypno, np.zeros(shape=(1, s[1]), dtype=hypno.dtype), axis=0)
             # Collapse
             hypno = hypno.reshape(-1, 2, hypno.shape[-1]).sum(1)
 
@@ -313,7 +316,12 @@ class Hypnodensity(object):
             keep_dims = D1.shape[1]
             D2 = D2[:, :keep_dims]
             D1 = D1[:, :keep_dims]
+            # C = tf.signal.fftshift(nf.real(tf.signal.ifft2d(tf.signal.fft2d(D1.astype(np.complex128)) * np.conj(tf.signal.fft2d(D2.astype(np.complex128))))))
 
+            # See: https: // www.tensorflow.org / api_docs / python / tf / nn / conv2d
+            # a = np.array([[[[2], [1], [2]], [[1], [2], [3]], ]])
+            # b = tf.nn.conv2d(a, a, strides=[1, 1, 1, 1], padding='VALID')
+            # b = tf.raw_ops.Conv2D(input=a, filter=a, strides=[1, 1, 1, 1], padding='VALID')
             # Fast implementation of auto/cross-correlation
             C = fftshift(
                 np.real(ifft(fft(D1, dim * 2 - 1, axis=0) * np.conj(fft(D2, dim * 2 - 1, axis=0)), axis=0)),
@@ -460,11 +468,19 @@ class Hypnodensity(object):
             if has_centrals:
                 centrals_idx = 0
                 unused_ch = self.get_loudest_channel(['C3', 'C4'], meanV[centrals_idx], covM[centrals_idx])
+                if unused_ch == 'C3':
+                    print('Selecting C4')
+                else:
+                    print('Selecting C3')
                 del self.channels_used[unused_ch]
 
             if has_occipitals:
                 occipitals_idx = 1
                 unused_ch = self.get_loudest_channel(['O1', 'O2'], meanV[occipitals_idx], covM[occipitals_idx])
+                if unused_ch == 'O1':
+                    print('Selecting O2')
+                else:
+                    print('Selecting O1')
                 del self.channels_used[unused_ch]
 
     def get_loudest_channel(self, channel_tags, mean_vec, cov_mat):
@@ -492,29 +508,59 @@ class Hypnodensity(object):
 
     def score_data(self):
         self.hypnodensity = list()
+        # bad_signal = self.get_signal_quality_events()
+        # bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal]
 
-        # identify flat line
-        self.identify_flatline()
-        flatline_15_sec = [self.epoch_rebase(x, 0.25, 15) for x in self.flatline]
+        # bad_blocks = self.get_inf_nan_encoded_blocks()
+        # self.encoded_data[:, bad_blocks] = 0
+        inf_nan_indices = self.get_inf_nan_encoding_indices()
+        self.encoded_data[inf_nan_indices] = 0
+
+        # identify bad signal/data: flat line, excessive noise
+        #self.identify_flatline()
+        # flatline_15_sec = [self.epoch_rebase(x, 0.25, 15).astype(np.uint32) for x in self.flatline]
+        # flatline_15_sec = []
         for l in self.config.models_used:
             hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
             # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
             # remove any sections identified with flatline
-            for flatline_start_stop in flatline_15_sec:
-                hyp[flatline_start_stop[0]:flatline_15_sec[1], :] = np.nan
-
+            #for bad_signal_start_stop in bad_signal_15_sec:
+            #    hyp[bad_signal_start_stop[0]:bad_signal_start_stop[1], :] = np.nan
             self.hypnodensity.append(hyp)
+
+    # Returns a np.2darray of the start and step times (elapsed times in seconds from start of the psg)
+    # of events annotated as bad quality.  Data in these locations will be replaced with nan values.
+    def get_signal_quality_events(self):
+        # See if there is a file with the same name as the
+        bad_data_file = Path(self.edf_filename)
+        data_quality_file = Path(self.config.filename["data_quality"])
+        # self.load_signal_quality_events(bP)
+        quality_control_events = []
+        if data_quality_file.exists():
+            a = read_csv(data_quality_file, header=0, names=['start_sec', 'duration_sec', 'channel_label'])
+            b = np.array(a[['start_sec', 'duration_sec']])
+            b[:, 1] = np.sum(b, axis=1)
+            quality_control_events = b
+        return quality_control_events
+
+    def get_inf_nan_encoding_indices(self):
+        return np.logical_or(np.isnan(self.encoded_data), np.isinf(self.encoded_data))
+
+    def get_inf_nan_encoded_blocks(self):
+        bad_values = np.any(self.get_inf_nan_encoding_indices(), axis=0)
+        bad_indices = np.where(bad_values)
+        return bad_indices
 
     def identify_flatline(self):
         self.flatline = []
         bad_values = np.any(np.logical_or(np.isnan(self.encoded_data), np.isinf(self.encoded_data)), axis=0)
-
+        # bad_indices = np.where(bad_values)
         # Another approach is to string together 2.5 segments from each channel.
-        # _flatline = np.tile(False, self.encoded_data.shape[1])
-        #for offset in _encoded_data_channel_offsets.values():
-        #    channel_slice = self.encoded_data[offset]
-        #    _flatline = np.logical_or(_flatline, np.logical_or(np.isnan(channel_slice), np.isinf(channel_slice)))
+        _flatline = np.tile(False, self.encoded_data.shape[1])
+        for offset in self._encoded_data_channel_offsets.values():
+            channel_slice = self.encoded_data[offset]
+            _flatline = np.logical_or(_flatline, np.logical_or(np.isnan(channel_slice), np.isinf(channel_slice)))
 
         if any(bad_values):
             true_count = 0
@@ -523,9 +569,12 @@ class Hypnodensity(object):
                 if value:
                     true_count = true_count + 1
                 elif true_count > 0:
+                    # This is the case where we have had a run (1 or more) bad values, have now had a good value, and
+                    # now need to do book-keeping for the bad_value indices, record them if they pass the run count threshold.
                     if true_count >= count_threshold:
-                        # -1 because we don't include the current index which is false.
-                        self.flatline.append(np.array([index-true_count-1, index-1]))
+                        # index-1 because we don't include the current index which is false.
+                        # really [(index-1)-true_count+1, index - 1] @hyatt
+                        self.flatline.append(np.array([index-true_count, index-1]))
                     true_count = 0
             # Handle case of finishing with flat line data
             if true_count >= count_threshold:

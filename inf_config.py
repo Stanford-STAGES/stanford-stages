@@ -97,6 +97,8 @@ class AppConfig(object):
     @lights_off.setter
     def lights_off(self, value: int):
         self._lights_off = self.str2int(value)
+        if self._lights_off is None:
+            self._lights_off = 0
 
     @property
     def lights_on(self):
@@ -105,6 +107,8 @@ class AppConfig(object):
     @lights_on.setter
     def lights_on(self, value: int):
         self._lights_on = self.str2int(value)
+        if self.lights_on == 0:
+            self.lights_on = None
 
     def get_lights_off_epoch(self, epoch_len: int = 15):
         return self.sec2epoch(self.lights_off, epoch_len)

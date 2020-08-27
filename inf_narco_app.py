@@ -92,6 +92,7 @@ def main(edf_filename: str = None,
         'chin_emg': 'EMG'
     }
     edf_file: Path = Path(edf_filename)
+
     output_path = Path(config_input.get("output_path", edf_file.parent))
 
     model_dict = config_input.get("inf_config", None)
@@ -143,6 +144,7 @@ def main(edf_filename: str = None,
     hyp['save']['diagnosis'] = True
     hyp['save']['encoding'] = True
 
+    hyp['filename']['data_quality'] = change_file_extension(edf_filename, '.evt')
     encoding_filename = output_path / (edf_file.stem + '.h5')
     hyp['filename']['pkl_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
     hyp['filename']['h5_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
@@ -235,7 +237,6 @@ def main(edf_filename: str = None,
         diagnosis = None
 
     return prediction, diagnosis
-
 
 
 def change_file_extension(fullname, new_extension):
