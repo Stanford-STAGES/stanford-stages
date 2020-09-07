@@ -421,11 +421,17 @@ class Hypnodensity(object):
             # Fix for issue 9: https://github.com/Stanford-STAGES/stanford-stages/issues/9
             if isinstance(ch_idx, int):
                 self.myprint('Filtering {}'.format(ch))
-                self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
-
+                # See https://dsp.stackexchange.com/questions/11466/differences-between-python-and-matlab-filtfilt-function regarding
+                # discrepancies between zero-padding performed in MATLAB's filtfilt and scipy's.
+                # In matlab's filtfilt, it is 3*(max(len(a), len(b)) - 1), and in scipy's filtfilt, it is 3*max(len(a), len(b)).
+                # self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch])
+                padlen = 3*(max(len(Fh[0]), len(Fh[1])) - 1)
+                self.loaded_channels[ch] = signal.filtfilt(Fh[0], Fh[1], self.loaded_channels[ch], padtype='odd',
+                                                           padlen=padlen)
                 if fs > (2 * self.fs_low):
-                    self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch]).astype(
-                        dtype=np.float32)
+                    padlen = 3 * (max(len(Fl[0]), len(Fl[1])) - 1)
+                    self.loaded_channels[ch] = signal.filtfilt(Fl[0], Fl[1], self.loaded_channels[ch], padtype='odd',
+                                                               padlen=padlen).astype(dtype=np.float32)
 
     def resampling(self, ch, fs):
         self.myprint("original samplerate = ", fs)
