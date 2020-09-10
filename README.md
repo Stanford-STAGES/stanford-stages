@@ -1,6 +1,6 @@
 # Stanford Stages
 
-Automated sleep staging scoring and narcolepsy identification.
+Automated sleep stage scoring and narcolepsy identification.
 
 ## Instructions
 
@@ -9,6 +9,13 @@ https://docs.google.com/document/d/e/2PACX-1vTvin7Gdn7FN9-2NbAQKgnApR6F73en46cTF
 
 **NOTE**: The currently supported version of Python is >= 3.6. Previous versions of Python have been shown to yield erroneous results. We are actively looking into this issue.
 
+## Branches
+
+Git provides support for multiple _branches_ of development.  Notable branches in the stanford-stages repository include:
+
+1. __manuscript__ This branch includes the code presented with the 2018 manuscript ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy,"](https://www.nature.com/articles/s41467-018-07229-3) which relies on earlier versions of GPflow, and in turn TensorFlow, to use the narcolepsy classification models (gp.zip) included below.  
+
+1. __beta__ The _beta_ branch adds support for TensorFlow 2.0 and GPflow 2.0.  This branch can be used to automatically score sleep stages using the original hypnodensity models (ac.zip) included below.  It is _not_ compatible with the previously trained narcolepsy classification models.  We are working on developing new classification models.
 
 # Initial configuration
 

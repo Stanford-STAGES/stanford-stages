@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 
 
+
 class AppConfig(object):
     edf_file: Path
 
@@ -24,6 +25,7 @@ class AppConfig(object):
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
+
         self.fs = np.array(100, dtype=float)
         self.fs_high = np.array(0.2, dtype=float)
         self.fs_low = np.array(49, dtype=float)
@@ -75,7 +77,7 @@ class AppConfig(object):
                                         0.89474061, 0.87774597, 0.87615981, 0.88391175, 0.89158020, 0.88084675,
                                         0.89320215, 0.87923673, 0.87615981, 0.88850328]
 
-        self.narco_prediction_selected_features = [1, 11, 14, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140,
+        self.narco_prediction_selected_features = [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140,
                                                    147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296,
                                                    390, 405, 450, 467, 468, 470, 474, 476, 477]
         # Set to False to minimize printed output.
