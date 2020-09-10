@@ -14,7 +14,7 @@ def batch_norm(x, n_out, av_dims, is_training, scope='bn'):
     Return:
         normed:      batch-normalized maps
     """
-    with tf.variable_scope(scope):
+    with tf.compat.v1.variable_scope(scope):
         beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
                            name='beta', trainable=True)
         gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
@@ -25,7 +25,7 @@ def batch_norm(x, n_out, av_dims, is_training, scope='bn'):
 
     # phase_train = tf.get_variable('is_training',[],dtype=bool,trainable=False,initializer=tf.constant_initializer(True))
     phase_train = tf.constant(True, dtype=bool, name='is_training')
-    if not (is_training):
+    if not is_training:
         phase_train = tf.logical_not(phase_train, name='is_not_training')
 
     # phase_train = tf.Print(phase_train,[phase_train])
@@ -54,25 +54,26 @@ def _activation_summary(x):
 def _variable_on_cpu(name, shape, initializer):
     with tf.device('/cpu:0'):
         dtype = tf.float32
-        var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=True)
+        var = tf.compat.v1.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=True)
         return var
 
 
 def _variable_with_weight_decay(name, shape, stddev, wd):
-    dtype = tf.float32
+    # dtype = tf.float32 --> deprecated from constructor pass: ref:
+    # https://www.tensorflow.org/api_docs/python/tf/compat/v1/truncated_normal_initializer
     var = _variable_on_cpu(
         name,
         shape,
-        tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+        tf.compat.v1.truncated_normal_initializer(stddev=stddev))
     if wd is not None:
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-        tf.add_to_collection('losses', weight_decay)
+        tf.compat.v1.add_to_collection('losses', weight_decay)
 
     return var
 
 
 def conv_block(config, inputs, scope_name, fShape, stride):
-    with tf.variable_scope(scope_name) as scope:
+    with tf.compat.v1.variable_scope(scope_name) as scope:
         kernel = _variable_with_weight_decay('weights', shape=fShape,
                                              stddev=1e-3, wd=0.000001)
         conv = tf.nn.conv2d(inputs, kernel, [1, 1, stride, 1], padding='SAME')
@@ -86,7 +87,7 @@ def conv_block(config, inputs, scope_name, fShape, stride):
 
 
 def conv2d_block(config, inputs, scope_name, fShape, stride):
-    with tf.variable_scope(scope_name) as scope:
+    with tf.compat.v1.variable_scope(scope_name) as scope:
         kernel = _variable_with_weight_decay('weights', shape=fShape,
                                              stddev=1e-3, wd=0.00001)
         conv = tf.nn.conv3d(inputs, kernel, [1, 1, stride[0], stride[1], 1], padding='SAME')

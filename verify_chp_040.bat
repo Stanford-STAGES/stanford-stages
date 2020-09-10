@@ -1,5 +1,5 @@
 SETLOCAL
-SET FILENAME="C:\Data\CHP040.edf"
+SET FILENAME="C:\Data\ml\CHP040.edf"
 dir %FILENAME%
 
 :: Removes both pickle files:

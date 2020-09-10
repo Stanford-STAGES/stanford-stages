@@ -9,12 +9,11 @@ Demo.pkl
 
 *.hypno_pkl
 
+ml/ac/
+ml/gp/
 \.idea/
 test_app.sh
 ml/ac.zip
 ml/scaling.zip
 ml/ac
 ml/gp
-ml/ac/*
-ml/gp/*
-

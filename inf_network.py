@@ -1,7 +1,5 @@
 import inf_convolution as sc_conv
-
 import tensorflow as tf
-import pdb
 
 
 class SCModel(object):
@@ -10,22 +8,22 @@ class SCModel(object):
         self.is_training = ac_config.is_training
         # Placeholders
 
-        self._features = tf.placeholder(tf.float32, [None, None, ac_config.num_features], name='ModelInput')
-        self._targets = tf.placeholder(tf.float32, [None, ac_config.num_classes], name='ModelOutput')
-        self._mask = tf.placeholder(tf.float32, [None], name='ModelWeights')
+        self._features = tf.compat.v1.placeholder(tf.float32, [None, None, ac_config.num_features], name='ModelInput')
+        self._targets = tf.compat.v1.placeholder(tf.float32, [None, ac_config.num_classes], name='ModelOutput')
+        self._mask = tf.compat.v1.placeholder(tf.float32, [None], name='ModelWeights')
 
-        self._batch_size = tf.placeholder(tf.int32, name='BatchSize')
-        self._learning_rate = tf.placeholder(tf.float32, name='LearningRate')
+        self._batch_size = tf.compat.v1.placeholder(tf.int32, name='BatchSize')
+        self._learning_rate = tf.compat.v1.placeholder(tf.float32, name='LearningRate')
 
         batch_size_int = tf.reshape(self._batch_size, [])
 
         if ac_config.lstm:
-            self._initial_state = tf.placeholder_with_default(
-                tf.zeros([batch_size_int, ac_config.num_hidden * 2], dtype=tf.float32), [None, ac_config.num_hidden * 2],
-                name='InitialState')
+            self._initial_state = tf.compat.v1.placeholder_with_default(
+                tf.zeros([batch_size_int, ac_config.num_hidden * 2], dtype=tf.float32),
+                [None, ac_config.num_hidden * 2], name='InitialState')
 
         # Layer in
-        with tf.variable_scope('input_hidden') as scope:
+        with tf.compat.v1.variable_scope('input_hidden') as scope:
             inputs = self._features
             inputs = tf.reshape(inputs, shape=[batch_size_int, -1, ac_config.segsize, ac_config.num_features])
 
@@ -52,25 +50,43 @@ class SCModel(object):
             oKeepProb = 1
 
         # Layer hidden
-        with tf.variable_scope('hidden_hidden') as scope:
+        with tf.compat.v1.variable_scope('hidden_hidden') as scope:
             if ac_config.lstm:
-                cell = tf.nn.rnn_cell.BasicLSTMCell(ac_config.num_hidden, forget_bias=1.0, state_is_tuple=True)
-                cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=iKeepProb, output_keep_prob=oKeepProb)
-                initial_state = tf.nn.rnn_cell.LSTMStateTuple(self._initial_state[:, :ac_config.num_hidden],
-                                                              self._initial_state[:, ac_config.num_hidden:])
-                outputs, final_state = tf.nn.dynamic_rnn(cell, hidden_combined, dtype=tf.float32,
-                                                         initial_state=initial_state)
+
+                cell = tf.compat.v1.nn.rnn_cell.BasicLSTMCell(ac_config.num_hidden, forget_bias=1.0, state_is_tuple=True)  #  Forget bias is the bias added to forget gates. This must be set to 0 when resotring from cudnnLSTM-trained checkpoints
+
+                cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=iKeepProb,
+                                                               output_keep_prob=oKeepProb)
+                initial_state = tf.compat.v1.nn.rnn_cell.LSTMStateTuple(self._initial_state[:, :ac_config.num_hidden],
+                                                                        self._initial_state[:, ac_config.num_hidden:])
+
+                outputs, final_state = tf.compat.v1.nn.dynamic_rnn(cell, hidden_combined, dtype=tf.float32,
+                                                                   initial_state=initial_state)
+                #outputs, final_state = tf.compat.v1.keras.layers.RNN(cell, hidden_combined, dtype=tf.float32,
+                #                                                     initial_state=None) #initial_state)
+
+                # equivalent to above - but optimized for gpu ... perhaps.
+                # cell = tf.compat.v1.keras.layers.LSTMCell(ac_config.num_hidden, unit_forget_bias=True)
+
+                # Update for dropout wrapper ...
+                #cell = tf.compat.v1.keras.layers.LSTMCell(ac_config.num_hidden, unit_forget_bias=True)
+                                                          # dropout=iKeepProb, recurrent_dropout=oKeepProb)
+
+                #initial_state = (self._initial_state[:, :ac_config.num_hidden],
+                #                 self._initial_state[:, ac_config.num_hidden:])
+                #outputs, final_state = tf.compat.v1.keras.layers(cell, hidden_combined, dtype=tf.float32,
+                #                                                 initial_state=initial_state)
 
             else:
                 hidden_combined = tf.reshape(hidden_combined, [-1, int(nHid[2])])
                 weights = sc_conv._variable_with_weight_decay('weights', shape=[nHid[2], ac_config.num_hidden],
                                                               stddev=0.04, wd=0.00001)
                 biases = sc_conv._variable_on_cpu('biases', ac_config.num_hidden, tf.constant_initializer(0.01))
-                outputs = tf.nn.relu(tf.add(tf.matmul(hidden_combined, weights), biases), name=scope.name)
+                outputs = tf.compat.v1.nn.relu(tf.add(tf.matmul(hidden_combined, weights), biases), name=scope.name)
                 # sc_conv._activation_summary(outputs)
 
         # Layer out
-        with tf.variable_scope('hidden_output') as scope:
+        with tf.compat.v1.variable_scope('hidden_output') as scope:
             outputs = tf.reshape(outputs, [-1, ac_config.num_hidden])
             weights = sc_conv._variable_with_weight_decay('weights', shape=[ac_config.num_hidden, ac_config.num_classes],
                                                           stddev=0.04, wd=0.00001)
@@ -85,11 +101,11 @@ class SCModel(object):
         self._loss = loss
         self._logits = logits
         self._cross_ent = cross_ent
-        self._softmax = tf.nn.softmax(logits)
+        self._softmax = tf.compat.v1.nn.softmax(logits)
         self._predict = tf.argmax(self._softmax, 1)
         self._correct = tf.equal(tf.argmax(logits, 1), tf.argmax(self._targets, 1))
         self._accuracy = tf.reduce_mean(tf.cast(self._correct, tf.float32))
-        self._confidence = tf.reduce_sum(tf.multiply(self._softmax, self._targets), 1);
+        self._confidence = tf.reduce_sum(tf.multiply(self._softmax, self._targets), 1)
         self._baseline = (tf.reduce_mean(self._targets, 0))
 
         if ac_config.lstm:
@@ -113,17 +129,16 @@ class SCModel(object):
 
     def intelligent_cost(self, logits):
         logits = tf.clip_by_value(logits, -1e10, 1e+10)
-        cross_ent = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self._targets)
+        cross_ent = tf.compat.v1.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=self._targets)
         # cross_ent = tf.mul(cross_ent, self._mask)
         cross_ent = tf.reduce_mean(cross_ent)  # / tf.reduce_sum(self._mask)
-        tf.add_to_collection('losses', cross_ent)
+        tf.compat.v1.add_to_collection('losses', cross_ent)
 
         return cross_ent
 
     def gather_loss(self):
-
         loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg_loss')
-        losses = tf.get_collection('losses')
+        losses = tf.compat.v1.get_collection('losses')
         total_loss = tf.add_n(losses, name='total_loss')
         loss_averages_op = loss_averages.apply(losses + [total_loss])
 
