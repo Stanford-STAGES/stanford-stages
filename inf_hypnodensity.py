@@ -7,23 +7,26 @@ Created on Wed Jul 12 23:58:10 2017
 @modifier: neergaard
 # from: inf_eval --> to: inf_generate_hypnodensity
 """
+import json
 import pickle
-import h5py  # Adding h5py support :) - requiring h5py support :(
-from pathlib import Path
 import time  # for auditing code speed.
-import skimage
+from pathlib import Path
+
+import h5py  # Adding h5py support :) - requiring h5py support :(
 import numpy as np
 import pyedflib
 import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
-from scipy.fftpack import fft, ifft, fftshift
+import skimage
 import tensorflow as tf
-from inf_config import ACConfig
-from inf_network import SCModel
-from inf_tools import myprint, softmax
-from inf_narco_features import HypnodensityFeatures
-# import csv.reader
 from pandas import read_csv
+from scipy.fftpack import fft, ifft, fftshift
+
+from inf_config import ACConfig
+from inf_narco_features import HypnodensityFeatures
+from inf_network import SCModel
+from inf_tools import myprint, softmax, rolling_window_nodelay
+# import csv.reader
 
 
 def config_property(name):
@@ -70,8 +73,8 @@ class Hypnodensity(object):
         N = (D-(max(cc_size)-delta_lapse))/delta_lapse
             where D is the maximum duration of the PSG in seconds which can be divided by 30 without giving a remainder,
             max(cc_size) is 4 s, and delta_lapse is 0.25s.
-        N = (D-3.75)*4 
-        Thus if a PSG is 30980s, then D = 30960 and N = 123825                 
+        N = (D-3.75)*4
+        Thus if a PSG is 30980s, then D = 30960 and N = 123825
         '''
         self.encoded_data = []
         self._encoded_data_channel_slices = {'central': range(0, 200),
@@ -89,6 +92,10 @@ class Hypnodensity(object):
                                               'chin': 1600}
 
         self.fs = int(app_config.fs)
+
+        # Filter specifications for resampling from MATLAB
+        with open("filter_specs.json", "r") as json_file:
+            self.filter_specs = json.load(json_file)
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
@@ -308,8 +315,10 @@ class Hypnodensity(object):
             # Create 2D array of overlapping segments
             zero_vec = np.zeros(dim // 2)
             input2 = np.concatenate((zero_vec, x2, zero_vec))
-            D1 = skimage.util.view_as_windows(x1, dim, slide).T
-            D2 = skimage.util.view_as_windows(input2, dim * 2, slide).T
+            D1 = rolling_window_nodelay(x1, dim, slide)
+            D2 = rolling_window_nodelay(input2, dim * 2, slide)
+            # D1 = skimage.util.view_as_windows(x1, dim, slide).T
+            # D2 = skimage.util.view_as_windows(input2, dim * 2, slide).T
             zero_mat = np.zeros((dim // 2, D1.shape[1]))
             D1 = np.concatenate([zero_mat, D1, zero_mat])
 
@@ -436,19 +445,36 @@ class Hypnodensity(object):
     def resampling(self, ch, fs):
         self.myprint("original samplerate = ", fs)
         self.myprint("resampling to ", self.fs)
-        if fs == 500 or fs == 200:
-            numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
-                          0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
-                          0.184663795586300, 0.143586518157187, 0.0894912177899215, 0.0376532652007562,
-                          0.0, -0.0186368912579407, -0.0208207236911009, -0.0175636017706537],
-                         [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
-                          -0.050624178425469]]  # from matlab
-            s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
-            self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
-                                                       zero_phase=False)
-        else:
-            self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
-                                                            window=('kaiser', 5.0))
+
+        if fs != self.fs:
+            self.loaded_channels[ch] = signal.upfirdn(
+                self.filter_specs[str(self.fs)][str(fs)]["numerator"],
+                self.loaded_channels[ch],
+                self.filter_specs[str(self.fs)][str(fs)]["up"],
+                self.filter_specs[str(self.fs)][str(fs)]["down"],
+            )
+            if self.fs == 100:
+                if (fs == 256 or fs == 512):  # Matlab creates a filtercascade which requires the 128 Hz filter be applied afterwards
+                    self.loaded_channels[ch] = signal.upfirdn(
+                        self.filter_specs[str(self.fs)]["128"]["numerator"],
+                        self.loaded_channels[ch],
+                        self.filter_specs[str(self.fs)]["128"]["up"],
+                        self.filter_specs[str(self.fs)]["128"]["down"],
+                    )
+
+        # if fs == 500 or fs == 200:
+        #     numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
+        #                   0.0894912177899215, 0.143586518157187, 0.184663795586300, 0.200000000000000,
+        #                   0.184663795586300, 0.143586518157187, 0.0894912177899215, 0.0376532652007562,
+        #                   0.0, -0.0186368912579407, -0.0208207236911009, -0.0175636017706537],
+        #                  [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
+        #                   -0.050624178425469]]  # from matlab
+        #     s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
+        #     self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
+        #                                                zero_phase=False)
+        # else:
+        #     self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
+        #                                                     window=('kaiser', 5.0))
 
     def psg_noise_level(self):
         # Only need to check noise levels when we have two central or occipital channels
@@ -615,7 +641,9 @@ class Hypnodensity(object):
         slide = slide * fs
 
         # Creates 2D array of overlapping segments
-        D = skimage.util.view_as_windows(x, dim, slide).T
+        # D = skimage.util.view_as_windows(x, dim, slide).T
+        D = rolling_window_nodelay(x, dim, dim)
+        D = np.delete(D, -1, axis=-1)
 
         # Extract Hjorth params for each segment
         dD = np.diff(D, 1, axis=0)
