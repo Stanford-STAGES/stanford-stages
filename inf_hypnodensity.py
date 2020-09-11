@@ -21,12 +21,11 @@ import skimage
 import tensorflow as tf
 from pandas import read_csv
 from scipy.fftpack import fft, ifft, fftshift
-
 from inf_config import ACConfig
 from inf_narco_features import HypnodensityFeatures
 from inf_network import SCModel
 from inf_tools import myprint, softmax, rolling_window_nodelay
-# import csv.reader
+from pkg_resources import resource_filename
 
 
 def config_property(name):
@@ -94,8 +93,14 @@ class Hypnodensity(object):
         self.fs = int(app_config.fs)
 
         # Filter specifications for resampling from MATLAB
-        with open("filter_specs.json", "r") as json_file:
-            self.filter_specs = json.load(json_file)
+        try:
+            filter_specs_path = resource_filename('_resources', 'filter_specs.json')
+            with open(filter_specs_path, "r") as json_file:
+                self.filter_specs = json.load(json_file)
+        except FileNotFoundError:
+            self.filter_specs = {}
+            myprint('Unable to load filter specifications file.  Default resampling filter coefficients will be used'
+                    ' instead.')
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
@@ -444,23 +449,39 @@ class Hypnodensity(object):
 
     def resampling(self, ch, fs):
         self.myprint("original samplerate = ", fs)
-        self.myprint("resampling to ", self.fs)
-
-        if fs != self.fs:
-            self.loaded_channels[ch] = signal.upfirdn(
-                self.filter_specs[str(self.fs)][str(fs)]["numerator"],
-                self.loaded_channels[ch],
-                self.filter_specs[str(self.fs)][str(fs)]["up"],
-                self.filter_specs[str(self.fs)][str(fs)]["down"],
-            )
-            if self.fs == 100:
-                if (fs == 256 or fs == 512):  # Matlab creates a filtercascade which requires the 128 Hz filter be applied afterwards
+        if fs == self.fs:
+            self.myprint("resampling not required")
+        else:
+            self.myprint("resampling to ", self.fs)
+            resample_fs_id = str(self.fs)
+            original_fs_id = str(fs)
+            has_valid_filter_specs = resample_fs_id in self.filter_specs and\
+                                     original_fs_id in self.filter_specs[resample_fs_id]
+            if has_valid_filter_specs:
+                try:
                     self.loaded_channels[ch] = signal.upfirdn(
-                        self.filter_specs[str(self.fs)]["128"]["numerator"],
+                        self.filter_specs[resample_fs_id][original_fs_id]["numerator"],
                         self.loaded_channels[ch],
-                        self.filter_specs[str(self.fs)]["128"]["up"],
-                        self.filter_specs[str(self.fs)]["128"]["down"],
+                        self.filter_specs[resample_fs_id][original_fs_id]["up"],
+                        self.filter_specs[resample_fs_id][original_fs_id]["down"],
                     )
+                    if self.fs == 100:
+                        if fs == 256 or fs == 512:  # Matlab creates a filtercascade which requires the 128 Hz filter be applied afterwards
+                            self.loaded_channels[ch] = signal.upfirdn(
+                                self.filter_specs[resample_fs_id]["128"]["numerator"],
+                                self.loaded_channels[ch],
+                                self.filter_specs[resample_fs_id]["128"]["up"],
+                                self.filter_specs[resample_fs_id]["128"]["down"],
+                            )
+                except:
+                    self.myprint('Warning: Exception caught during resampling.  Using automated resampling filter '
+                                 'coefficients.')
+                    self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
+                                                                    window=('kaiser', 5.0))
+
+            else:
+                self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
+                                                                window=('kaiser', 5.0))
 
         # if fs == 500 or fs == 200:
         #     numerator = [[-0.0175636017706537, -0.0208207236911009, -0.0186368912579407, 0.0, 0.0376532652007562,
