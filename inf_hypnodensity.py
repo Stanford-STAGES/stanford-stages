@@ -443,7 +443,10 @@ class Hypnodensity(object):
                           0.0, -0.0186368912579407, -0.0208207236911009, -0.0175636017706537],
                          [-0.050624178425469, 0.0, 0.295059334702992, 0.500000000000000, 0.295059334702992, 0.0,
                           -0.050624178425469]]  # from matlab
-            s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
+            if fs == 500:
+                s = signal.dlti(numerator[0], [1], dt=1. / self.fs)
+            elif fs == 200:
+                s = signal.dlti(numerator[1], [1], dt=1. / self.fs)
             self.loaded_channels[ch] = signal.decimate(self.loaded_channels[ch], fs // self.fs, ftype=s,
                                                        zero_phase=False)
         else:
