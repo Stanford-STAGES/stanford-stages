@@ -652,8 +652,10 @@ class Hypnodensity(object):
         # D = skimage.util.view_as_windows(x, dim, slide).T
 
         # Original MATLAB call was buffer(input, dim, dim-slide, 'nodelay') from load_signal.m @hyatt
-        D = rolling_window_nodelay(x, dim, dim - slide)
-        # D = np.delete(D, -1, axis=-1)
+
+        # Ref issue #24
+        D = rolling_window_nodelay(x, dim, slide)
+        D = np.delete(D, -1, axis=-1)
 
         # Extract Hjorth params for each segment
         dD = np.diff(D, 1, axis=0)
