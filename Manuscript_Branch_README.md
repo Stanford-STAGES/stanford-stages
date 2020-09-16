@@ -1,9 +1,9 @@
 # Stanford Stages _manuscript_ branch
 
 This readme file is for the **_manuscript_** branch of the stanford-stages app which is located [here](https://github.com/Stanford-STAGES/stanford-stages/tree/manuscript). 
-The _**manuscript**_ branch maintains compatibility with the narcolepsy models linked below which were first presented with the manuscript, ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy"](https://www.nature.com/articles/s41467-018-07229-3), by Stephansen et al.
 
-A drawback to retaining compatibility with these initial narcolepsy models is the software's reliance on earlier versions of Tensorflow and GPFlow and CPU only operations.  If your primary interest is in scoring sleep stages, we recommend the _**master**_ branch, which provides GPU support and is more actively maintained.
+The _**manuscript**_ branch maintains compatibility with the narcolepsy classification models linked below and which were first presented with the manuscript, ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy"](https://www.nature.com/articles/s41467-018-07229-3), by Stephansen et al.
+Compatibility with these narcoleps models requires earlier versions of GPflow, and in turn TensorFlow (i.e. < 2.0).  The software in this branch only supports CPU operations.  Consider using the _**master**_ branch, which provides GPU support and is more actively maintained, if your primary interest is in scoring sleep stages.
 
 ## Instructions
 
