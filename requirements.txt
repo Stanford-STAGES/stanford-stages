@@ -1,3 +1,6 @@
+pandas
+h5py
+scipy
 tensorflow>=2.0
 numpy==1.17.0
 scikit-image>=0.15.0
