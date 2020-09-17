@@ -649,10 +649,6 @@ class Hypnodensity(object):
         slide = slide * fs
 
         # Creates 2D array of overlapping segments
-        # D = skimage.util.view_as_windows(x, dim, slide).T
-
-        # Original MATLAB call was buffer(input, dim, dim-slide, 'nodelay') from load_signal.m @hyatt
-
         # Ref issue #24
         D = rolling_window_nodelay(x, dim, slide)
         D = np.delete(D, -1, axis=-1)
