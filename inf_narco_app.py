@@ -11,15 +11,15 @@ from pathlib import Path
 import logging
 # from asyncore import file_dispatcher
 from datetime import datetime
-from typing import Any, Union
+# from typing import Any, Union
 
 import gpflow as gpf
 # For hypnodensity plotting ...
 import matplotlib.pyplot as plt
-import numpy as np
-# import pdb
-import tensorflow as tf
 from matplotlib.patches import Polygon
+import numpy as np
+import tensorflow as tf
+
 from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
 from inf_hypnodensity import Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to
                                            # inf_hypnodensity.py
