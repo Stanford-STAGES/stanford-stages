@@ -65,15 +65,19 @@ def main(edf_filename: str = None,
     app_config = AppConfig()
     app_config.edf_filename = edf_filename
 
+    if config_input is None:
+        config_input = {}
+
     # Update config_input with anything found in the json file that does not exist as a key value pair in the
     # config_input dictionary
+
     if config_filename is not None:
         if not Path(config_filename).is_file():
             raise StanfordStagesError(f"config_filename ({config_filename}) does not exist", edf_filename)
         else:
             with open(config_filename, 'r') as fid:
                 json_dict = json.load(fid)
-            for key, value in json_dict:
+            for key, value in json_dict.items():
                 if key not in config_input:
                     config_input[key] = value
 

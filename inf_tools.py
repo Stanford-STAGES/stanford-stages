@@ -1,4 +1,54 @@
 import numpy as np
+import logging
+from pathlib import Path
+from pyedflib import EdfReader
+
+logging_level_STAGES = 60
+logging.addLevelName(logging_level_STAGES, 'STAGES')
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+def print_log(msg: str, log_level: str = 'info'):
+    print(msg)
+    if log_level in ['warning', 'debug', 'critical', 'error', 'info']:
+        getattr(logger, log_level)(msg)
+    elif log_level.lower() == 'stages':
+        logger.log(logging_level_STAGES, msg)
+
+
+def get_edf_filenames(path2check):
+    edf_files = get_edf_files(path2check)
+    return [str(i) for i in edf_files]  # list compression
+
+
+def get_edf_files(path2check):
+    p = Path(path2check)
+    # verify that we have an accurate directory
+    # if so then list all .edf/.EDF files
+    if p.is_dir():
+        print_log('Checking ' + str(path2check) + "for edf files.", 'debug')
+        edf_files = p.glob('*.[Ee][Dd][Ff]')  # make search case-insensitive
+    else:
+        print_log(str(path2check) + " is not a valid directory.", 'debug')
+        edf_files = []
+    return list(edf_files)
+
+
+def get_signal_headers(edf_filename, verbose=False):
+    if verbose:
+        print("Reading headers from ", edf_filename)
+    try:
+        edf_r = EdfReader(str(edf_filename), annotations_mode=False, check_file_size=False)
+        return edf_r.getSignalHeaders()
+    except:
+        print("Failed reading headers from ", str(edf_filename))
+        return []
+
+
+def get_channel_labels(edf_filename):
+    channel_headers = get_signal_headers(edf_filename)
+    return [fields["label"] for fields in channel_headers]
 
 
 def softmax(x):
