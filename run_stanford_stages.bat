@@ -1,7 +1,7 @@
 SETLOCAL
-SET FILENAME="C:\Data\ml\CHP040.edf"
-SET CONFIG="C:\Data\ml\signal_labels.json"
-dir %FILENAME%
+:: SET FILENAME="C:\Data\ml\CHP040.edf"
+SET CONFIG_FILE="C:\Data\ml\signal_labels.json"
+:: dir %FILENAME%
 
 :: Removes both pickle files:
 :: del C:\Data\CHP040.*pkl
@@ -12,4 +12,5 @@ dir %FILENAME%
 :: Remove previously picked hypnodensity data - useful when trying different models
 :: del C:\Data\CHP040.hypno_pkl
 
-python run_stanford_stages.py %FILENAME% %CONFIG%
+:: python run_stanford_stages.py %FILENAME% %CONFIG%
+python run_stanford_stages.py %CONFIG_FILE%
