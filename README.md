@@ -1,36 +1,56 @@
 # Stanford Stages
 
-Automated sleep stage scoring and narcolepsy identification.
+An automated sleep stage scoring and narcolepsy identification software program written in Python.
 
-The stanford-stages app uses machine learning to perform automated sleep stage scoring and narcolepsy identification of nocturnal polysomnography studies.  Sleep studies must be in European Data Format (.edf).
-
+The stanford-stages app uses machine learning to perform automated sleep stage scoring and narcolepsy identification of nocturnal polysomnography (PSG) studies, which must be in European Data Format (.edf).
+The software requires previously trained models to accomplish this as described in the 2018 manuscript ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy."](https://www.nature.com/articles/s41467-018-07229-3)
 ## Branches
 
 Git provides support for multiple _branches_ of development.  Notable branches in the stanford-stages repository include:
 
-1. __master__ This branch provides GPU (Nvidia) compatibility and supports TensorFlow 2.0 and GPflow 2.0.  Source code from this branch can be used to automatically score sleep stages using the original hypnodensity models (ac.zip) included below.  It is _not_ compatible with the previously trained narcolepsy classification models.  We are working on developing new classification models.
+1. __Master__ 
 
-1. __beta__ This is the development branch for the __master__ branch.  Updates are made here first, and consequently it is not always stable.
+   The ___master branch___ provides GPU (Nvidia) compatibility and supports TensorFlow 2.0 and GPflow 2.0.  Source code from this branch can be used to automatically score sleep stages using the original hypnodensity models (ac.zip) included below.  It is _not_ compatible with the previously trained narcolepsy classification models.  We are working on developing new classification models.
 
-1. __manuscript__ This branch includes the code presented with the 2018 manuscript ["Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy,"](https://www.nature.com/articles/s41467-018-07229-3) which relies on earlier versions of GPflow, and in turn TensorFlow, to use the narcolepsy classification models (gp.zip) included below.  Instructions for this branch may be found [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md).
+1. __Manuscript__ 
 
-**NOTE**: Only Python 3.6 and later is supported. Previous versions of Python have been shown to yield erroneous results. 
+   The ___manuscript branch___ includes the code presented with the 2018 manuscript.  It uses earlier versions of GPflow and TensorFlow, to retain compatibility with the narcolepsy classification models (gp.zip) presented with the manuscript.  
+  
+    See the [__manuscript branch__ README page](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for configuration instructions using this branch and links to the narcolepsy models.  
 
-# Initial configuration
+1. __Beta__ 
+
+   The ___beta branch___ serves as development branch for making and testing changes to the ___master branch___ and is not always stable.      
+
+
+   **NOTE**: Only Python 3.6 and later is supported. Previous versions of Python have been shown to yield erroneous results. 
+
+# Configuration
+
+These instruction are for the master branch.  
 
 ## Models
 
-Classification models are hosted externally and should be downloaded and extracted into the repositories 'ml/' subfolder
+The sleep staging classification models are hosted externally at the following location:
 
 * ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
-* gp.zip - www.informaton.org/narco/ml/gp.zip ([Mirror 2](https://stanfordmedicine.box.com/shared/static/de1741vdu2x0ltodpnsqftr533vwmkvb.zip)) [61.4 MiB, 64.4 MB] 
+* <strike>gp.zip</strike>*
+
+
+ 
+Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG are necessary d by the software to run.
+The .zip file may be deleted once its contents have been extracted.  
+A Javascript object notation (json) file is used to configure the software.   
+   
 
 When complete the 'ml/' directory tree should like:<pre>
 ac/
-gp/
+<strike>gp/</strike>
 noiseM.mat
 scaling</pre>
 
+*_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
+ 
 ## Validation
 
 The sleep study CHP_040.edf is may be used to verify your setup.  It can be downloaded from the following mirrors:
@@ -82,7 +102,7 @@ for running the application.
 
 1. Edit the inf_config.py file and ensure that model_used property is set as follows:
 
-<pre><code>self.models_used = ['ac_rh_ls_lstm_01', 'ac_rh_ls_lstm_02',
+   <pre><code>self.models_used = ['ac_rh_ls_lstm_01', 'ac_rh_ls_lstm_02',
                     'ac_rh_ls_lstm_03', 'ac_rh_ls_lstm_04',
                     'ac_rh_ls_lstm_05', 'ac_rh_ls_lstm_06',
                     'ac_rh_ls_lstm_07', 'ac_rh_ls_lstm_08',
@@ -93,12 +113,12 @@ for running the application.
 
 2. Run the shell script from a command line terminal as:
 
-<pre><code>sh ./verify_chp_040.sh</code></pre>
+   <pre><code>sh ./verify_chp_040.sh</code></pre>
 
-Note: If the shell script has been run before using a single model, you will need to delete the previously cached "pickle" files.  Edit the verify_chp_040.sh script and uncomment the line:
+   Note: If the shell script has been run before using a single model, you will need to delete the previously cached "pickle" files.  Edit the verify_chp_040.sh script and uncomment the line:
 
-<pre><code># rm /Users/unknown/data/sleep/narcoTest/CHP040.\*pkl</code></pre>
-to remove any previously saved pickle files.
+   <pre><code># rm /Users/unknown/data/sleep/narcoTest/CHP040.\*pkl</code></pre>
+   to remove any previously saved pickle files.
 
 3. Check results
 
@@ -180,6 +200,7 @@ The keys for these parameters, and their corresponding definitions are as follow
 
 * `channel_indices`
    * Description
+   
     Assigns channel indices corresponding to the central, occipital, ocular, and chin EMG. One or two EEG channels may be assigned
 to the central and occipital categories.  Both left and right EOG channels are required for the corresponding occular category, and one channel is required for the chin EMG.  In the event that two channels are presented for an EEG category (central or occipital), a quality metric is calculated
 for each channel, and the optimal channel is selected for use.  Channel indices are 0 based and correspond to the channel labels list provided in
