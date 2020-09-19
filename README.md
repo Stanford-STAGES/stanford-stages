@@ -25,9 +25,44 @@ Git provides support for multiple _branches_ of development.  Notable branches i
 
    **NOTE**: Only Python 3.6 and later is supported. Previous versions of Python have been shown to yield erroneous results. 
 
-# Configuration
+# Getting started
 
-These instruction are for the master branch.  
+The stanford-stages application is most readily configured and used by editing the repository's __stanford_stages.json__ file and passing 
+ it to the __run_stanford_stages.py__ script.  Instructions on how to run the application are given first followed by instructions on how to configure the application.  
+ However, in practice, you will need to configure the application before it can be run.      
+
+_Note_: These instruction are for the master branch.
+
+## Running the application
+
+The __run_stanford_stages.py__ script can be called from within the Python runtime environment, or by using one of the shell or batch scripts included below.
+
+### From python      
+
+```python
+import run_stanford_stages
+run_stanford_stages.run_using_json_file(json_file='/path/to/stanford_stages.json')
+```
+
+### From a shell or batch script
+
+Two, operating specific (OS) scripts are included with the repository: 
+
+* __run_stanford_stages.bat__ (Windows) 
+* __run_stanford_stages.sh__ (Mac OSX and Linux)
+
+These scripts invoke the Python runtime and call __run_stanford_stages.py__ using the __stanford_stages.json__ configuration file found in the same directory.  
+
+Edit the script associated with your OS to use a different .json configuration file that you have, perhaps created and stored elsewhere.   
+ 
+_Note_: Linux and Unix users will need to modify (chmod) the _run_stanford_stages.sh_ file in order to run it as a standalone executable. 
+
+## Configuring the application
+
+These instructions are for configuring the application using a .json file (e.g. `stanford_stages.json`) with `run_stanford_stages.py`.  
+
+Developers interested in bypassing the __run_stanford_stages.py wrapper script can call __inf_narco_app.py__'s `main` method directly file directly, using a subset of these json arguments.  
+Documentation for inf_narco_app.py's json arguments can be found [here] 
 
 ## Models
 
@@ -35,8 +70,6 @@ The sleep staging classification models are hosted externally at the following l
 
 * ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
 * <strike>gp.zip</strike>*
-
-
  
 Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG are necessary d by the software to run.
 The .zip file may be deleted once its contents have been extracted.  
@@ -51,90 +84,7 @@ scaling</pre>
 
 *_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
  
-## Validation
 
-The sleep study CHP_040.edf is may be used to verify your setup.  It can be downloaded from the following mirrors:
-
-1. [Mirror 1](https://stanfordmedicine.box.com/shared/static/0lvvyaprzinzz7dult87t7hr96s2dnqq.edf) [380 MB]
-2. [Mirror 2](https://www.informaton.org/narco/ml/validation/CHP040.edf) [380 MB]
-
-The sleep study may be placed in any directory.  Edit the shell script <i>verify_chp_040.sh</i> so that the absolute pathname for CHP040.edf is given for the FILENAME variable.  In this example, it is assumed to have been saved to the directory `/Users/unknown/data/sleep/narcoTest/` and so the the FILENAME variable should be set as follows:
-
-<pre><code>FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"</code></pre>
-
-See the single model validation configuration
-
-### Using one model (quick check)
-
-This validation tests your configuration using one model, 'ac_rh_ls_lstm_01' and is recommended as
-a first step to making sure the application is configured correctly simply because it takes
-less time to check than running all 16 models.  
-
-1. Edit the inf_config.py file so that the model_used property is set as follows:
-
-<pre><code>self.models_used = ['ac_rh_ls_lstm_01']</code></pre>
-
-2. Run the shell script from a command line terminal as:
-
-<pre><code>sh ./verify_chp_040.sh</code></pre>
-
-3. Check results
-
-Upon successful completion, a hypnogram file and hypnodensity image will be created
-and saved in the same directory as the input CHP040.edf file.  
-
-Expected results for the ac_rh_ls_lstm_01 hypnogram and hypnodensity results can be found here:
-
-* [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnogram.txt) [4 KB]
-
-* [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnodensity.png) [158 KB]
-
-Expected diagnosis output is:
-
-<pre>Score: -0.0076
-Diagnosis: Narcolepsy type 1</pre>
-
-
-### Using all models
-
-This validation tests your configuration using all 16 models and is the recommended way
-for running the application.  
-
-1. Edit the inf_config.py file and ensure that model_used property is set as follows:
-
-   <pre><code>self.models_used = ['ac_rh_ls_lstm_01', 'ac_rh_ls_lstm_02',
-                    'ac_rh_ls_lstm_03', 'ac_rh_ls_lstm_04',
-                    'ac_rh_ls_lstm_05', 'ac_rh_ls_lstm_06',
-                    'ac_rh_ls_lstm_07', 'ac_rh_ls_lstm_08',
-                    'ac_rh_ls_lstm_09', 'ac_rh_ls_lstm_10',
-                    'ac_rh_ls_lstm_11', 'ac_rh_ls_lstm_12',
-                    'ac_rh_ls_lstm_13', 'ac_rh_ls_lstm_14',
-                    'ac_rh_ls_lstm_15', 'ac_rh_ls_lstm_16']</code></pre>
-
-2. Run the shell script from a command line terminal as:
-
-   <pre><code>sh ./verify_chp_040.sh</code></pre>
-
-   Note: If the shell script has been run before using a single model, you will need to delete the previously cached "pickle" files.  Edit the verify_chp_040.sh script and uncomment the line:
-
-   <pre><code># rm /Users/unknown/data/sleep/narcoTest/CHP040.\*pkl</code></pre>
-   to remove any previously saved pickle files.
-
-3. Check results
-
-Upon successful completion, a hypnogram file and hypnodensity image will be created
-and saved in the same directory as the input CHP040.edf file.  
-
-Expected results for may be found here:
-
-* [Hypnogram (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnogram.txt) [4 KB]
-
-* [Hypnodensity image (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnodensity.png) [155 KB]
-
-Expected diagnosis output is:
-
-<pre>Score: 0.1658
-Diagnosis: Narcolepsy type 1</pre>
 
 ## Output
 
