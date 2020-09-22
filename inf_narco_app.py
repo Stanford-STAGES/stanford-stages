@@ -139,13 +139,13 @@ def main(edf_filename: str = None,
     hyp['show']['hypnogram'] = False
     hyp['show']['hypnogram_30_sec'] = False
     hyp['show']['hypnodensity'] = False
-    hyp['show']['diagnosis'] = True
+    hyp['show']['diagnosis'] = False
 
     hyp['save']['plot'] = True
     hyp['save']['hypnogram'] = True
     hyp['save']['hypnogram_30_sec'] = True
     hyp['save']['hypnodensity'] = True
-    hyp['save']['diagnosis'] = True
+    hyp['save']['diagnosis'] = False
     hyp['save']['encoding'] = True
 
     hyp['filename']['data_quality'] = change_file_extension(edf_filename, '.evt')
