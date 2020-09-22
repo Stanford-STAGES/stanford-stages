@@ -22,7 +22,6 @@ Git provides support for multiple _branches_ of development.  Notable branches i
 
    The ___beta branch___ serves as development branch for making and testing changes to the ___master branch___ and is not always stable.      
 
-
    **NOTE**: Only Python 3.6 and later is supported. Previous versions of Python have been shown to yield erroneous results. 
 
 # Getting started
@@ -61,8 +60,7 @@ Use the following link for configuring the __run_stanford_stages.py__ wrapper:
 
 [Instructions for configuring the application using JSON](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md)
 
-Developers interested in bypassing the __run_stanford_stages.py__ wrapper can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments.   
-Documentation for these json arguments is included in the same documentation [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md).
+Developers interested in bypassing the __run_stanford_stages.py__ wrapper can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments. Documentation for these json arguments is included in the same documentation [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md).
 
 ## Output
 
