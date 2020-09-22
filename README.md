@@ -27,9 +27,7 @@ Git provides support for multiple _branches_ of development.  Notable branches i
 
 # Getting started
 
-The stanford-stages application is most readily configured and used by editing the repository's __stanford_stages.json__ file and passing 
- it to the __run_stanford_stages.py__ script.  Instructions on how to run the application are given first followed by instructions on how to configure the application.  
- However, in practice, you will need to configure the application before it can be run.      
+The stanford-stages application is most readily configured and used by editing the repository's __stanford_stages.json__ file and passing it to the __run_stanford_stages.py__ script.  Instructions on how to run the application are given first followed by instructions on how to configure the application.  In practice, you will need to configure the application before it can be run.      
 
 _Note_: These instruction are for the master branch.
 
@@ -59,31 +57,13 @@ _Note_: Linux and Unix users will need to modify (chmod) the _run_stanford_stage
 
 ## Configuring the application
 
-These instructions are for configuring the application using a .json file (e.g. `stanford_stages.json`) with `run_stanford_stages.py`.  
+Use the following link for configuring the __run_stanford_stages.py__ wrapper:
 
-Developers interested in bypassing the __run_stanford_stages.py wrapper script can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments.  
-Documentation for inf_narco_app.py's json arguments can be found [here] 
+[Instructions for configuring the application using JSON](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md)
 
-## Models
+Developers interested in bypassing the __run_stanford_stages.py__ wrapper can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments.   
+Documentation for these json arguments is included in the same documentation [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md).
 
-The sleep staging classification models are hosted externally at the following location:
-
-* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
-* <strike>gp.zip</strike>*
- 
-Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG are necessary d by the software to run.
-The .zip file may be deleted once its contents have been extracted.  
-A Javascript object notation (json) file is used to configure the software.   
-   
-
-When complete the 'ml/' directory tree should like:<pre>
-ac/
-<strike>gp/</strike>
-noiseM.mat
-scaling</pre>
-
-*_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
- 
 ## Output
 
 ### Narcolepsy diagnosis
@@ -136,7 +116,27 @@ entire spectrum is covered.  Color matching is as follows:
 * Stage 3/4 sleep: blue
 * REM sleep: green
 
-## Licensing and Attribution
+# Models
+
+The sleep staging classification models are hosted externally at the following location:
+
+* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
+* <strike>gp.zip</strike>*
+ 
+Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG are necessary d by the software to run.
+The .zip file may be deleted once its contents have been extracted.  
+A Javascript object notation (json) file is used to configure the software.   
+   
+
+When complete the 'ml/' directory tree should like:<pre>
+ac/
+<strike>gp/</strike>
+noiseM.mat
+scaling</pre>
+
+*_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
+
+# Licensing and Attribution
 
 This software is licensed under the Creative Commons CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/).  
 
