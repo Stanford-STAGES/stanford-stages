@@ -62,13 +62,15 @@ Use the following link for configuring the __run_stanford_stages.py__ wrapper:
 
 Developers interested in bypassing the __run_stanford_stages.py__ wrapper can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments. Documentation for these json arguments is included in the same documentation [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md).
 
-## Output
+# Application Output
 
-### Narcolepsy diagnosis
+This section describes the application's output.  These outputs may be displayed in the console window and/or saved to disk as described in the JSON configuration section readme.
+
+## Narcolepsy diagnosis
 
 The algorithm produces values between −1 and 1, with 1 indicating a high probability of narcolepsy. The cut-off threshold between narcolepsy type 1 and “other“ is set at −0.03.  See [Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy](https://www.nature.com/articles/s41467-018-07229-3) for details.  
 
-### Hypnogram
+## Hypnogram
 
 The hypnogram provides a numeric indicator of wake or sleep stage for every epoch scored.  
 By default, epochs are scored in 15 s intervals as follows:
@@ -79,9 +81,9 @@ By default, epochs are scored in 15 s intervals as follows:
 * Stage 3/4 sleep: `3`
 * Rapid eye movement (REM) sleep: `5`
 
-### Hypnodensity
+## Hypnodensity
 
-#### Text
+### As a text file
 The hypnodensity text output is the same length (number of epochs/rows) as the hypnogram.  Instead of a
 sleep score, however, five probabilities are given representing the likelihood of the
 sleep stage corresponding to its column for the current epoch.  Probabilities are ordered
@@ -99,7 +101,7 @@ Represents
 * Stage 3/4 sleep: 3% likelihood
 * REM sleep: 70% likelihood
 
-#### Image
+### As a plot
 
 The x-axis of the hypnodensity plot represents the epochs from the beginning to the
 end of the study, which are measured in 15 s intervals by default.  The y-axis ranges from
