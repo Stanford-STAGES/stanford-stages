@@ -2,10 +2,7 @@
 
 The ___stanford-stages app___ may be run using __run_stanford_stages.py__ (or one of its wrapper scripts) with a Javascript object notation (json) configuration file, or by invoking the main method of __inf_narco_app.py__ module with a json file or passing json parameters to it directly.
 
-The __run_stanford_stages.py__ provides additional functionality for configuring and using the ___stanford-stages app___ within a processing pipeline.  
-As such, the json parameters are slightly different between __run_stanford_stages.py__ and __inf_narco_app.py__.  For example, 
-the `channel_labels` field is used to list possible channel labels (e.g. 'C3-M1') that __run_stanford_stages.py__ will search  .edf file being processed
- for the corresponding channel index (e.g. 0) which is then updated to the corresponding `channel_indices` field values used by __inf_narco_app.py__.
+The __run_stanford_stages.py__ provides additional functionality for configuring and using the ___stanford-stages app___ within a processing pipeline. As such, the json parameters are slightly different between __run_stanford_stages.py__ and __inf_narco_app.py__.  For example, the `channel_labels` field is used to list possible channel labels (e.g. 'C3-M1') that __run_stanford_stages.py__ will search  .edf file being processed for the corresponding channel index (e.g. 0) which is then updated to the corresponding `channel_indices` field values used by __inf_narco_app.py__.
 
 A description of the supported key-value pairs for these files are provided here.  A sample json input file that can be used as a starting
 point for __run_stanford_stages.py__ is included [below]() and in the repository's code base as well (see [stanford_stages.json]()).
@@ -44,16 +41,15 @@ Both EOG channels, a chin EMG channel, and at least one central and one occipita
 
 ## `inf_config`
 
-These settings override default configurations that are found in the __inf_config.py__ file.  The location of model paths must be updated with the location of the model files provided through the external links on the main readme page and which
- must be downloaded and extracted for use.
+These settings override default configurations that are found in the __inf_config.py__ file.  The location of model paths must be updated with the location of the model files provided through the external links on the main readme page and which must be downloaded and extracted for use.
   
 * ### `hypnodensity_model_dir`
 
-The location of the hypnodensity models which are used to score sleep stages.  Download these models from the links located on in the repository's readme file.
+  The location of the hypnodensity models which are used to score sleep stages.  Download these models from the links located on in the repository's readme file.
 
 * ### `narcolepsy_classifier_path`
 
-The location of the narcolepsy classification models which are used to provide a likelihood of narcolepsy.  Currently, narcolepy classification models are only provided for the _manuscript branch_.  These models may be downloaded from the external links provided in the repository's readme file.
+  The location of the narcolepsy classification models which are used to provide a likelihood of narcolepsy.  Currently, narcolepy classification models are only provided for the _manuscript branch_.  These models may be downloaded from the external links provided in the repository's readme file.
 
 * ### `hypnodensity_scale_path`
 
@@ -102,8 +98,7 @@ Output files are named by replacing the '.edf' suffix of the study name with the
 
 * ### `diagnosis` \[True\]
 
-  When 'True', a text file is created containing the narcolepsy score, which ranges between -1 and 1, and the narcolepsy classification.  The file suffix is '.diagnosis.txt'.  
-   For example, diagnosis save file for 'CHP040.edf' would be 'CHP040.diagnosis.txt'.
+  When 'True', a text file is created containing the narcolepsy score, which ranges between -1 and 1, and the narcolepsy classification.  The file suffix is '.diagnosis.txt'.  For example, diagnosis save file for 'CHP040.edf' would be 'CHP040.diagnosis.txt'.
   
 * ### `encoding`  \[True\]
 
@@ -130,7 +125,9 @@ Output files are named by replacing the '.edf' suffix of the study name with the
 ## `show`
 
 The `show` field identifies which results are output to the console window (e.g. terminal, shell, or Python interpreter) when running the stanford-stages app.    
+
 The following keys use boolean values (true/false) to indicate if output is shown or not for the associated category.  
+
 Any field not specified in the JSON file will be treated as 'False' and not shown.  
 
 * ### `diagnosis`
@@ -151,8 +148,7 @@ Any field not specified in the JSON file will be treated as 'False' and not show
 
 * ### `plot` 
 
-  Shows a visual representation of the hypnodensity in a stand alone window.  The app will wait until the user closes this window before continuing, 
-  which be may be undesired when running app as a pipeline to process multiple studies at a time.
+  Shows a visual representation of the hypnodensity in a stand alone window.  The app will wait until the user closes this window before continuing, which be may be undesired when running app as a pipeline to process multiple studies at a time.
    
 # Sample JSON content for _run_stanford_stages.py_ 
 ```json
@@ -222,10 +218,9 @@ This section describes the JSON key value pairs which can be passed directly to 
 ## `channel_indices`
    
 ### Description
- Assigns channel indices corresponding to the central, occipital, ocular, and chin EMG. One or two EEG channels may be assigned
-to the central and occipital categories.  Both left and right EOG channels are required for the corresponding occular category, and one channel is required for the chin EMG.  In the event that two channels are presented for an EEG category (central or occipital), a quality metric is calculated
-for each channel, and the optimal channel is selected for use.  Channel indices are 0 based and correspond to the channel labels list provided in
-the .EDF file header.
+ Assigns channel indices corresponding to the central, occipital, ocular, and chin EMG. 
+ 
+ One or two EEG channels may be assigned to the central and occipital categories.  Both left and right EOG channels are required for the corresponding occular category, and one channel is required for the chin EMG.  In the event that two channels are presented for an EEG category (central or occipital), a quality metric is calculated for each channel, and the optimal channel is selected for use.  Channel indices are 0 based and correspond to the channel labels list provided in the .EDF file header.
 
  ### Supported keys and values
 
@@ -243,19 +238,17 @@ the .EDF file header.
 * `chin_emg`: EMG channel index
 
 ## `show`
-   * Description
-    Flags for determining which results are output to the console.
-   * Supported keys: allowed and [default] values
-      * `plot`: true or [false]
-      * `hypnodensity`: true or [false]
-      * `hypnogram`: true or [false]
-      * `diagnosis`: true or [false]
+Flags for determining which results are output to the console.
+
+### Supported keys and [default] values
+* `plot`: true or [false]
+* `hypnodensity`: true or [false]
+* `hypnogram`: true or [false]
+* `diagnosis`: true or [false]
 
 ## `save`
-### Description
-Flags for determining which results are saved to disk.  Files are saved to the same directory 
-as the input .edf file.  Save filenames are generated by pairing the .edf file's basename with 
-the file extension matching the output type requested.
+
+Flags for determining which results are saved to disk.  Files are saved to the same directory as the input .edf file.  Save filenames are generated by pairing the .edf file's basename with the file extension matching the output type requested.
 
 ### Supported keys and values
 
@@ -267,14 +260,13 @@ the file extension matching the output type requested.
 
 [default] values (file extension used by default when true)
 
-### Description
+## `filename`
 
-Alternative filename to use in place of the default naming convention and path location used when saving results.  
-### Supported keys
+Alternative filenames to use in place of the default naming convention and path location used when saving results.  
+
+#### Supported keys and values
+
 * `plot`: Full path for hypnodensity image file
 * `hypnodensity`: Full path for hypnodensity output text file
 * `hypnogram`: Full path for hypnogram output text file
 * `diagnosis`: Full path for diagnosis output text file
-
- 
-      
