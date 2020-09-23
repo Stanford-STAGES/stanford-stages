@@ -63,22 +63,19 @@ The location of the narcolepsy classification models which are used to provide a
 
   This is the full filename (i.e. include the directory name) of __noise.mat__ file.  This file is included with the repository in the `ml/` subdirectory.  The default is to use this file at this location, relative to the calling method.  If you are calling the stanford-stages app from another location then it is necessary to specify the absolute location of the __noiseM.mat__ file.
 
-* ### `lighs_off`
+* ### `lights_off`
 
-  Indicates time elapsed (seconds) from the start of the study until Lights Off.  This identifies when the study starts and what data will be used by the models.  
+  Indicates time elapsed (seconds) from the start of the study until _lights off_.  This identifies when the study starts and what data will be used by the models.  
 Hypnodensity values prior to lights off will be scored 'nan' and hypnogram values prior to lights off will be scored as '7' (unknown).  The default value used in case
 of an empty or non-existent entry is 0 (i.e. the study starts immediately).
  
-* ### `lighs_on`
+* ### `lights_on`
 
-  Indicates time elapsed (seconds) from the start of the study until Lights On.  This identifies when the study end.  Hypnodensity and hypnogram values for data after lights on will be 
-scored as nan and '7' (unknown), respectively.  Negative values are allowed, and indicate elapsed time from the end of the study until lights on.  For example, -60 indicates
-lights on occurs 1 minute before the recording ends.  A value of 0 indicates that the entire study, from lights off, is used.  The default value used in case of an empty or non-existent entry is 0.
+  Indicates time elapsed (seconds) from the start of the study until _lights on.  This identifies when the study end.  Hypnodensity and hypnogram values for data after lights on will be scored as nan and '7' (unknown), respectively.  Negative values are allowed, and indicate elapsed time from the end of the study until lights on.  For example, -60 indicates lights on occurs 1 minute before the recording ends.  A value of 0 indicates that the entire study, from lights off, is used.  The default value used in case of an empty or non-existent entry is 0.
 
 * ### `models_used`
 
-  A list of the models to be used.  There are 16 models provided for scoring sleep and also for classifying narcolepsy (note: narcolepy classification models are only for the _manuscript branch_).
-Performance is best generalized by using all 16 models, however, using fewer models is faster.  The models are identified using the template __ac_rh_ls_lstm\__\<dd\>___ where \<dd\> is the 0 paded two digit model number (i.e. "__ac_rh_ls_lstm_01__" through "__ac_rh_ls_lstm_16__").
+  A list of the models to be used.  There are 16 models provided for scoring sleep and also for classifying narcolepsy (note: narcolepy classification models are only for the _manuscript branch_). Performance is best generalized by using all 16 models, however, using fewer models is faster.  The models are identified using the template __ac_rh_ls_lstm\__\<dd\>___ where \<dd\> is the 0 paded two digit model number (i.e. "__ac_rh_ls_lstm_01__" through "__ac_rh_ls_lstm_16__").
 
 
 * ### `atonce`
