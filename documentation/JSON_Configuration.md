@@ -194,19 +194,19 @@ Any field not specified in the JSON file will be treated as 'False' and not show
     },
     "output_path": "C:/Data/ml/results",
     "save": {
-        "diagnosis": "true",
-        "encoding": "true",
-        "hypnodensity": "false",
-        "hypnogram": "false",
-        "hypnogram_30_sec": "false",
-        "plot": "false"
+        "diagnosis": true,
+        "encoding": true,
+        "hypnodensity": false,
+        "hypnogram": false,
+        "hypnogram_30_sec": false,
+        "plot": false
     },
     "show": {
         "diagnosis": true,
         "hypnodensity": false,
         "hypnogram": false,
-        "hypnogram_30_sec": "true",
-        "plot": "false"
+        "hypnogram_30_sec": true,
+        "plot": false
     }
 }
 ```    
