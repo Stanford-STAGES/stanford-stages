@@ -40,10 +40,10 @@
     "save": {
         "diagnosis": false,
         "encoding": true,
-        "hypnodensity": false,
-        "hypnogram": false,
+        "hypnodensity": true,
+        "hypnogram": true,
         "hypnogram_30_sec": true,
-        "plot": false
+        "plot": true
     },
     "show": {
         "diagnosis": false,
