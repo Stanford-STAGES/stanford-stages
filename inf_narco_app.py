@@ -237,8 +237,8 @@ def main(edf_filename: str = None,
         diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
         logger.debug('Score:  %0.4f.  Diagnosis: %s', prediction, diagnosis)
     else:
-        prediction = None
-        diagnosis = None
+        prediction = np.nan
+        diagnosis = 'Not evaluated'
 
     return prediction, diagnosis
 
