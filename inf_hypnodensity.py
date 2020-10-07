@@ -257,6 +257,12 @@ class Hypnodensity(object):
 
         return av
 
+    # returns the number of hypnodensities available - this will correspond to the number of models used during the
+    # inferencing step, which will be between 1 and 16.
+    def get_num_hypnodensities(self):
+        # return self._hypnodensity.hypnodensity.shape[0]
+        return len(self.hypnodensity)
+
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self, epoch_len: int = 15):
         """

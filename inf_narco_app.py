@@ -350,6 +350,9 @@ class NarcoApp(object):
     def get_hypnodensity_features(self, model_name, idx):
         return self._hypnodensity.get_features(model_name, idx)
 
+    def get_num_hypnodensity_models_used(self):
+        return self._hypnodensity.get_num_hypnodensities()
+
     def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
 
         scales = self.config.narco_prediction_scales
@@ -358,6 +361,7 @@ class NarcoApp(object):
                      os.path.exists(os.path.join(gp_models_base_path, gp_model))}
         num_models = len(gp_models)
         num_models_expected = len(self.get_narco_gpmodels())
+        num_hypnodenisty_models = self.get_num_hypnodensity_models_used()
         if num_models == 0:
             logger.error(f'No narcolepsy models found for prediction at "{gp_models_base_path}".  Check config file '
                          f'or path.  Stopping!')
@@ -366,6 +370,12 @@ class NarcoApp(object):
             logger.error('Expecting %d models, but found %d models.  Check config file and path ("%s")',
                          num_models_expected, num_models, gp_models_base_path)
             raise StanfordStagesError('Unexpected number of narcolepsy prediction models.', self.edf_filename)
+        elif num_hypnodenisty_models != num_models_expected:
+            logger.error('Narcolepsy prediction expects hypnodensities from %d models, but %d were found.  Check '
+                         'config file and path ("%s")',
+                         num_models_expected, num_hypnodenisty_models, gp_models_base_path)
+            raise StanfordStagesError(f'Narcolepsy prediction model count ({num_models_expected}) mismatch with '
+                                      f'hypnodensity model count found ({num_hypnodenisty_models})', self.edf_filename)
 
         num_folds = self.config.narco_prediction_num_folds
 
