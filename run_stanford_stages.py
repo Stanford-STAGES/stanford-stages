@@ -31,7 +31,7 @@ def run_using_json_file(json_file: str):
         return
 
     with open(json_file, 'r') as fid:
-        json_dict = json.load(fid)
+        json_dict: dict = json.load(fid)
 
     '''
     json_dict['channel_labels'] = {
@@ -107,8 +107,7 @@ def run_using_json_file(json_file: str):
             msg = f'{index + 1:03d} / {num_edfs:03d}: {Path(edfFile).name}\t'
             # print(msg, end="")
             print_log(msg, 'STAGES')
-            score, diagnosis_str = run_edf(edfFile, json_configuration=copy.deepcopy(
-                json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
+            score, diagnosis_str = run_edf(edfFile, json_configuration=copy.deepcopy(json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
             pass_fail_dictionary[edfFile] = True
             # logger.debug('[run_stanford_stages.py] Score:  %0.4f.  Diagnosis: %s', score, diagnosis_str)
             result_str = f'[run_stanford_stages.py] Score: {score:0.4f}.  Diagnosis: {diagnosis_str}'
@@ -126,6 +125,14 @@ def run_using_json_file(json_file: str):
             print_log("Missing required channel(s):\n{0}".format(err), 'error')
         except (RunStagesError, narcoApp.StanfordStagesError) as err:
             print_log(f'{type(err).__name__}: {err.message}  ({err.edf_filename})', 'error')
+        except IndexError as err:
+            print_log("{0}: {1}".format(type(err).__name__, err), 'error')
+            traceback.print_exc()
+            print_log('An IndexError may be raised if a the application was running previously with a subset of all '
+                      '16 models and is not running with a greater selection of models. If this is the case, '
+                      'delete the cached hypnodensity.pkl file and run the software again in order to create the '
+                      'nesseary hypnodensity information for all models being used.')
+
         except:
             # print("Unexpected error:", sys.exc_info()[0])
             print_log("Unexpected error " + str(sys.exc_info()[0]) + ": " + str(sys.exc_info()[1]), 'error')
