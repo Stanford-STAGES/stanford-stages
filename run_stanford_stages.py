@@ -107,7 +107,8 @@ def run_using_json_file(json_file: str):
             msg = f'{index + 1:03d} / {num_edfs:03d}: {Path(edfFile).name}\t'
             # print(msg, end="")
             print_log(msg, 'STAGES')
-            score, diagnosis_str = run_edf(edfFile, json_configuration=copy.deepcopy(json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
+            score, diagnosis_str = run_edf(edfFile, json_configuration=copy.deepcopy(
+                json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
             pass_fail_dictionary[edfFile] = True
             # logger.debug('[run_stanford_stages.py] Score:  %0.4f.  Diagnosis: %s', score, diagnosis_str)
             result_str = f'[run_stanford_stages.py] Score: {score:0.4f}.  Diagnosis: {diagnosis_str}'
@@ -190,7 +191,9 @@ def run_edf(edf_file, json_configuration: {}):
                 else:
                     print_log('{0:s} not found'.format(generic_label), 'debug')
             else:
-                if edf_label in edf_channel_labels_found:
+                if edf_label.lower().strip() == 'none' or edf_label.strip() == '':
+                    continue
+                elif edf_label in edf_channel_labels_found:
                     edf_channel_indices_available[generic_label] = edf_channel_labels_found.index(edf_label)
                 else:
                     print_log('{0:s} not found'.format(edf_label), 'debug')
