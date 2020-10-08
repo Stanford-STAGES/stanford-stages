@@ -111,7 +111,10 @@ def run_using_json_file(json_file: str):
                 json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
             pass_fail_dictionary[edfFile] = True
             # logger.debug('[run_stanford_stages.py] Score:  %0.4f.  Diagnosis: %s', score, diagnosis_str)
-            result_str = f'[run_stanford_stages.py] Score: {score:0.4f}.  Diagnosis: {diagnosis_str}'
+            if diagnosis_str is None:
+                result_str = 'Narcoleposy Diagnosis Not Performed'
+            else:
+                result_str = f'[run_stanford_stages.py] Score: {score:0.4f}.  Diagnosis: {diagnosis_str}'
             print_log(result_str, 'STAGES')
 
         except KeyboardInterrupt:
