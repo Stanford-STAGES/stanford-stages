@@ -1,6 +1,8 @@
 import sys, time, json, traceback
+from collections import namedtuple
 from pathlib import Path
 import copy
+import csv
 from inf_tools import print_log, get_edf_filenames, get_channel_labels
 import inf_narco_app as narcoApp
 
@@ -97,6 +99,19 @@ def run_using_json_file(json_file: str):
 
     # Put this back into our json configuration ...
     json_dict['output_path'] = str(output_path)
+
+    # Check for .csv file containing lights out/on information
+    lights_edf_dict = {}
+    if 'lights_off_on_filename' in json_dict:
+        lights_filename = json_dict['lights_off_on_filename'].strip()
+        if lights_filename != "":
+            lights_filename = Path(lights_filename)
+            if not lights_filename.exists():
+                print_log(f'Could not find the "lights_off_on_filename" specified in the .json configuration file. ({str(lights_filename)}','warning')
+            else:
+                print_log(f'Loading lights off/on information from "{str(lights_filename)}')
+                lights_edf_dict: dict = load_lights_from_csv_file(lights_filename)
+
     # Previously called run_with_edf_files() here
     start_time = time.time()
     pass_fail_dictionary = dict.fromkeys(edf_files, False)
@@ -104,13 +119,20 @@ def run_using_json_file(json_file: str):
 
     for index, edfFile in enumerate(edf_files):
         try:  # ref: https://docs.python.org/3/tutorial/errors.html
-            msg = f'{index + 1:03d} / {num_edfs:03d}: {Path(edfFile).name}\t'
-            # print(msg, end="")
+            edf_filename = Path(edfFile).name
+            msg = f'{index + 1:03d} / {num_edfs:03d}: {edf_filename}\t'
+
             print_log(msg, 'STAGES')
-            score, diagnosis_str = run_edf(edfFile, json_configuration=copy.deepcopy(
-                json_dict))  # create a copy to avoid issues of making alteration below, such as channel indices ..
+            # create a copy to avoid issues of making alteration below, such as channel indices ...
+            cur_json_dict = copy.deepcopy(json_dict)
+            if edf_filename in lights_edf_dict:
+                cur_json_dict["lights_on"] = cur_json_dict[edf_filename].get("lights_on", 0)
+                cur_json_dict["lights_off"] = cur_json_dict[edf_filename].get("lights_off", 0)
+                print_log("Lights on: {cur_json_dict['lights_on']}, Lights off: {cur_json_dict['lights_off']}")
+
+            score, diagnosis_str = run_edf(edfFile, json_configuration=cur_json_dict)
             pass_fail_dictionary[edfFile] = True
-            # logger.debug('[run_stanford_stages.py] Score:  %0.4f.  Diagnosis: %s', score, diagnosis_str)
+
             if diagnosis_str is None:
                 result_str = 'Narcoleposy Diagnosis Not Performed'
             else:
@@ -224,6 +246,23 @@ def run_edf(edf_file, json_configuration: {}):
         json_configuration["channel_indices"] = edf_channel_indices_available
 
     return narcoApp.main(str(edf_file), json_configuration)
+
+
+def load_lights_from_csv_file(lights_filename):
+    lights_dict: dict = {}
+    if not Path(lights_filename).exists():
+        print_log("Lights filename does not exist: {lights_filename}", 'warning')
+    else:
+        with open(lights_filename) as fid:
+            f_csv = csv.DictReader(fid)
+            headings = next(f_csv)
+            Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
+            for line in f_csv:
+                row = Row(*line)
+                lights_dict[line[0]] = dict(zip(('lights_on', 'lights_off'), line[1:2]))
+                lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
+
+    return lights_dict
 
 
 def print_usage(tool_name='run_stanford_stages.py'):
