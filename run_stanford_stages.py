@@ -101,13 +101,15 @@ def run_using_json_file(json_file: str):
     json_dict['output_path'] = str(output_path)
 
     # Check for .csv file containing lights out/on information
+    lights_filename_key = 'lights_filename'
     lights_edf_dict = {}
-    if 'lights_off_on_filename' in json_dict:
-        lights_filename = json_dict['lights_off_on_filename'].strip()
+    if lights_filename_key in json_dict:
+        lights_filename = json_dict[lights_filename_key].strip()
         if lights_filename != "":
             lights_filename = Path(lights_filename)
             if not lights_filename.exists():
-                print_log(f'Could not find the "lights_off_on_filename" specified in the .json configuration file. ({str(lights_filename)}','warning')
+                print_log(f'Could not find the "{lights_filename_key}" key specified in the .json configuration file. '
+                          f'({str(lights_filename)}', 'warning')
             else:
                 print_log(f'Loading lights off/on information from "{str(lights_filename)}')
                 lights_edf_dict: dict = load_lights_from_csv_file(lights_filename)
