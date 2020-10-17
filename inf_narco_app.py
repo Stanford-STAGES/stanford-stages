@@ -144,15 +144,19 @@ def main(edf_filename: str = None,
     hyp['save']['plot'] = True
     hyp['save']['hypnogram'] = True
     hyp['save']['hypnogram_30_sec'] = True
-    hyp['save']['hypnodensity'] = True
+    hyp['save']['hypnodensity'] = None
+    hyp['save']['hypnodensity_txt'] = True
+    hyp['save']['hypnodensity_pkl'] = True
+    hyp['save']['hypnodensity_h5'] = True
+
     hyp['save']['diagnosis'] = False
     hyp['save']['encoding'] = True
 
     hyp['filename']['data_quality'] = change_file_extension(edf_filename, '.evt')
     encoding_filename = output_path / (edf_file.stem + '.h5')
-    hyp['filename']['pkl_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
-    hyp['filename']['h5_hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
-    hyp['filename']['hypnodensity'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
+    hyp['filename']['hypnodensity_pkl'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
+    hyp['filename']['hypnodensity_h5'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
+    hyp['filename']['hypnodensity_txt'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(encoding_filename, '.hypnogram.txt')
     hyp['filename']['hypnogram_30_sec'] = change_file_extension(encoding_filename, '.hypnogram.sta')
     hyp['filename']['diagnosis'] = change_file_extension(encoding_filename, '.diagnosis.txt')
@@ -165,6 +169,12 @@ def main(edf_filename: str = None,
 
     for key in hyp.keys():
         hyp[key].update(config_input.get(key, {}))
+
+    # The ['save']['hypnodensity'] will overwrite all other hypnodensity_* save options if it has been set
+    if hyp['save']['hypnodensity'] is not None:
+        hyp['save']['hypnodensity_txt'] = hyp['save']['hypnodensity']
+        hyp['save']['hypnodensity_h5'] = hyp['save']['hypnodensity']
+        hyp['save']['hypnodensity_pkl'] = hyp['save']['hypnodensity']
 
     # hyp['save'].update(config_input.get('save', {}))
     # hyp['show'].update(config_input.get('show', {}))
@@ -180,65 +190,75 @@ def main(edf_filename: str = None,
     # app_config.pkl_encoding = hyp['filename']['pkl_encoding']
 
     app_config.saveEncoding = hyp['save']['encoding']
-    app_config.saveHypnodensity = hyp['save']['hypnodensity']
+    app_config.save_hypnodensity_txt = hyp['save']['hypnodensity_txt']
+    app_config.save_hypnodensity_h5 = hyp['save']['hypnodensity_h5']
+    app_config.save_hypnodensity_pkl = hyp['save']['hypnodensity_pkl']
+    app_config.saveHypnodensity = app_config.save_hypnodensity_h5 or app_config.save_hypnodensity_txt or app_config.save_hypnodensity_pkl
+
     app_config.encodeFilename = hyp['filename']['encoding']
-    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['save']['hypnogram'] or hyp['show']['hypnogram_30_sec']
-                                 or hyp['save']['hypnogram_30_sec'] or hyp['save']['hypnodensity']
-                                 or hyp['show']['hypnodensity'] or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
+    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['save']['hypnogram']
+                                 or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec']
+                                 or hyp['show']['hypnodensity'] or app_config.saveHypnodensity
+                                 or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
                                  or hyp['show']['plot'] or hyp['save']['plot'])
 
-    narco_app = NarcoApp(app_config)
-    # narcoApp.eval_all()
-    narco_app.eval_hypnodensity()
-
-    if narco_app.config.audit.get('diagnosis', False):
-        narco_app.audit(narco_app.eval_narcolepsy, 'Diagnosing...')
-
-    if hypno_config['show']['hypnogram']:
-        print("Hypnogram:")
-        hypnogram = narco_app.get_hypnogram()
-        np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
-        print(hypnogram)
-
-    if hypno_config['show']['hypnogram_30_sec']:
-        print("Hypnogram (30 second epochs):")
-        hypnogram = narco_app.get_hypnogram(epoch_len=30)
-        np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
-        print(hypnogram)
-
-    # This is the text portion
-    if hypno_config['save']['hypnogram']:
-        narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram'])
-
-    if hypno_config['save']['hypnogram_30_sec']:
-        narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram_30_sec'], epoch_len=30)
-
-    if hypno_config['show']['hypnodensity']:
-        print("Hypnodensity:")
-        hypnodensity = narco_app.get_hypnodensity()
-        np.set_printoptions(threshold=10000*5, linewidth=150)
-        print(hypnodensity)
-
-    if hypno_config['save']['hypnodensity']:
-        narco_app.save_hypnodensity(filename=hypno_config['filename']['hypnodensity'])
-
-    if hypno_config['show']['diagnosis']:
-        print(narco_app.get_diagnosis())
-
-    if hypno_config['save']['diagnosis']:
-        narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
-
-    if not app_config.encodeOnly:
-        render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
-                            save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
-
-    if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
-        prediction = narco_app.narcolepsy_probability[0]
-        diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
-        logger.debug('Score:  %0.4f.  Diagnosis: %s', prediction, diagnosis)
-    else:
+    if app_config.encodeOnly and Path(app_config.encodeFilename).exists():
         prediction = None
         diagnosis = None
+        logger.debug('Skipping.  Encoding file already exists: %s', app_config.encodeFilename)
+    else:
+        narco_app = NarcoApp(app_config)
+        # narcoApp.eval_all()
+        narco_app.eval_hypnodensity()
+
+        if narco_app.config.audit.get('diagnosis', False):
+            narco_app.audit(narco_app.eval_narcolepsy, 'Diagnosing...')
+
+        if hypno_config['show']['hypnogram']:
+            print("Hypnogram:")
+            hypnogram = narco_app.get_hypnogram()
+            np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
+            print(hypnogram)
+
+        if hypno_config['show']['hypnogram_30_sec']:
+            print("Hypnogram (30 second epochs):")
+            hypnogram = narco_app.get_hypnogram(epoch_len=30)
+            np.set_printoptions(threshold=10000, linewidth=150)  # use linewidth = 2 to output as a single column
+            print(hypnogram)
+
+        # This is the text portion
+        if hypno_config['save']['hypnogram']:
+            narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram'])
+
+        if hypno_config['save']['hypnogram_30_sec']:
+            narco_app.save_hypnogram(filename=hypno_config['filename']['hypnogram_30_sec'], epoch_len=30)
+
+        if hypno_config['show']['hypnodensity']:
+            print("Hypnodensity:")
+            hypnodensity = narco_app.get_hypnodensity()
+            np.set_printoptions(threshold=10000*5, linewidth=150)
+            print(hypnodensity)
+
+        if hypno_config['save']['hypnodensity_txt']:
+            narco_app.save_hypnodensity(filename=hypno_config['filename']['hypnodensity_txt'])
+
+        if hypno_config['show']['diagnosis']:
+            print(narco_app.get_diagnosis())
+
+        if hypno_config['save']['diagnosis']:
+            narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
+
+        if not app_config.encodeOnly:
+            render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
+                                save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
+
+        if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
+            prediction = narco_app.narcolepsy_probability[0]
+            diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
+            logger.debug('Score:  %0.4f.  Diagnosis: %s', prediction, diagnosis)
+        else:
+            prediction = None
+            diagnosis = None
 
     return prediction, diagnosis
 

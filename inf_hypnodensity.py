@@ -177,7 +177,7 @@ class Hypnodensity(object):
         if self.config.saveEncoding:
             p = Path(self.config.encodeFilename)
 
-        h = Path(self.config.filename["h5_hypnodensity"])
+        h = Path(self.config.filename["hypnodensity_h5"])
 
         is_auditing = self.config.filename['audit'] is not None
         audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
@@ -213,17 +213,18 @@ class Hypnodensity(object):
             # If we are just encoding the file for future use, then we don't want to spend time running the models right
             # now and can skip this part.  Otherwise if we are auditing or not able to import a cached hypnodensity,
             # then we want to generate the hypnodensity
-            h = Path(self.config.filename["h5_hypnodensity"])
-            # h = Path(self.config.filename["pkl_hypnodensity"])
-            if audit_hypnodensity or not self.config.encodeOnly or not self.import_hypnodensity(h):
-                print('Calculating hypnodensity')
-                if audit_hypnodensity:
-                    self.audit(self.score_data, 'Generate hypnodensity')
-                else:
-                    self.score_data()
-                # cache our file
-                if self.config.saveHypnodensity:
-                    self.export_hypnodensity(h)
+            if audit_hypnodensity or not self.config.encodeOnly:
+                h = Path(self.config.filename["hypnodensity_h5"])
+                # h = Path(self.config.filename["_hypnodensity_pkl"])
+                if not self.import_hypnodensity(h):
+                    print('Calculating hypnodensity')
+                    if audit_hypnodensity:
+                        self.audit(self.score_data, 'Generate hypnodensity')
+                    else:
+                        self.score_data()
+                    # cache our file
+                    if self.config.save_hypnodensity_h5:
+                        self.export_hypnodensity(h)
 
     def encode_edf(self, export_path=None):
         # and if you can't then go through all the steps to encode it

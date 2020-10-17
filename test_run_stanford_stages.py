@@ -8,4 +8,5 @@ if __name__ == '__main__':
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     json_filename = 'C:\\Data\\ml\\stanford_stages.json'
     json_filename = 'F:\\wsc_edf\\stanford_stages.json'
+    json_filename = 'H:\Data\Converted\Valid\stanford_stages.json'
     narco_class_app.run_using_json_file(json_filename)
