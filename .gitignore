@@ -17,3 +17,7 @@ ml/ac.zip
 ml/scaling.zip
 ml/ac
 ml/gp
+*.json
+*.bat
+test_run_stanford_stages.py
+test_run_stanford_stages.py

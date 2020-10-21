@@ -201,11 +201,25 @@ def main(edf_filename: str = None,
                                  or hyp['show']['hypnodensity'] or app_config.saveHypnodensity
                                  or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
                                  or hyp['show']['plot'] or hyp['save']['plot'])
+    app_config.hypnodensitySaveOnly = app_config.saveHypnodensity and \
+                                      not(hyp['show']['hypnogram'] or hyp['save']['hypnogram']
+                                          or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec']
+                                          or hyp['show']['hypnodensity']
+                                          or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
+                                          or hyp['show']['plot'] or hyp['save']['plot'])
 
+    app_config.diagnosisSaveOnly = hyp['save']['diagnosis'] and not (hyp['show']['hypnogram'] or hyp['show']['hypnogram_30_sec']
+                                 or hyp['show']['hypnodensity'] or hyp['show']['diagnosis']
+                                 or hyp['show']['plot'] or hyp['save']['plot'])
+
+    prediction = None
+    diagnosis = None
     if app_config.encodeOnly and Path(app_config.encodeFilename).exists():
-        prediction = None
-        diagnosis = None
         logger.debug('Skipping.  Encoding file already exists: %s', app_config.encodeFilename)
+    elif app_config.hypnodensitySaveOnly and Path(hyp['filename']['hypnodensity_h5']).exists():
+        logger.debug('Skipping.  Hypnodensity file already exists: %s', str(hyp['filename']['hypnodensity_pkl']))
+    elif app_config.diagnosisSaveOnly and Path(hyp['filename']['diagnosis']).exists():
+        logger.debug('Skipping.  Diagnosis output file file already exists: %s', str(hyp['filename']['diagnosis']))
     else:
         narco_app = NarcoApp(app_config)
         # narcoApp.eval_all()
