@@ -21,3 +21,4 @@ ml/gp
 *.bat
 test_run_stanford_stages.py
 test_run_stanford_stages.py
+test_app.sh
