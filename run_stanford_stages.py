@@ -302,7 +302,7 @@ def load_lights_from_csv_file(lights_filename):
             #Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
             for line in f_csv:
                 #row = Row(*line)
-                lights_dict[line[0]] = dict(zip(('lights_on', 'lights_off'), line[1:2]))
+                lights_dict[line[0]] = dict(zip(('lights_off', 'lights_on'), line[1:3]))
                 #lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
 
     return lights_dict
