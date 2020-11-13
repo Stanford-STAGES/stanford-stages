@@ -99,8 +99,8 @@ def main(edf_filename: str = None,
 
     output_path = Path(config_input.get("output_path", edf_file.parent))
 
-    model_dict = config_input.get("inf_config", None)
-    if isinstance(model_dict, dict):
+    config_dict = config_input.get("inf_config", None)
+    if isinstance(config_dict, dict):
         keys_to_check = list(vars(app_config))
         # Add these properties
         properties = ['lights_off', 'lights_on']
@@ -113,21 +113,25 @@ def main(edf_filename: str = None,
         #     keys_to_check.append('lights_on')
 
         for key in keys_to_check:
-            if key in model_dict and key != 'channels_used':
-                value = model_dict[key]
+            if key in config_dict and key != 'channels_used':
+                value = config_dict[key]
                 if isinstance(value, list) and not len(value):
                     continue
                 else:
                     setattr(app_config, key, value)
 
-    for channel_category, channel_index in config_input["channel_indices"].items():
-        channel_label = channel_categories.get(channel_category, None)
-        if channel_label is not None:
-            if type(channel_index) is list or type(channel_index) is tuple:  # ==type(tuple):
-                for i in range(len(channel_index)):
-                    app_config.channels_used[channel_label[i]] = channel_index[i]
-            else:
-                app_config.channels_used[channel_label] = channel_index
+    # Bypassing the edf check is useful in cases where the edf has already been processed to an .h5 encoding file
+    # or hypnodensity file and the edf is no longer necessary (and perhaps removed for storage reasons)
+    bypass_edf_check = config_input.get('bypass_edf_check', False)
+    if not bypass_edf_check:
+        for channel_category, channel_index in config_input["channel_indices"].items():
+            channel_label = channel_categories.get(channel_category, None)
+            if channel_label is not None:
+                if type(channel_index) is list or type(channel_index) is tuple:  # ==type(tuple):
+                    for i in range(len(channel_index)):
+                        app_config.channels_used[channel_label[i]] = channel_index[i]
+                else:
+                    app_config.channels_used[channel_label] = channel_index
 
     # app_config.lightsOff = config_input.get('lightsOff', [])
     # app_config.lightsOn = config_input.get('lightsOn', [])

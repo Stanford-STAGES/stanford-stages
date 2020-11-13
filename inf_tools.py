@@ -22,17 +22,46 @@ def get_edf_filenames(path2check):
     return [str(i) for i in edf_files]  # list compression
 
 
+def get_h5_filenames(path2check):
+    edf_files = get_h5_files(path2check)
+    return [str(i) for i in edf_files]  # list compression
+
+
 def get_edf_files(path2check):
+    return get_files_with_ext(path2check,'edf')
+
+    # p = Path(path2check)
+    # # verify that we have an accurate directory
+    # # if so then list all .edf/.EDF files
+    # if p.is_dir():
+    #     print_log('Checking ' + str(path2check) + "for edf files.", 'debug')
+    #     edf_files = p.glob('*.[Ee][Dd][Ff]')  # make search case-insensitive
+    # else:
+    #     print_log(str(path2check) + " is not a valid directory.", 'debug')
+    #     edf_files = []
+    # return list(edf_files)
+
+
+def get_h5_files(path2check):
+    return get_files_with_ext(path2check, 'h5')
+
+
+def get_filenames_with_ext(path2check, **kwargs):
+    return [str(i) for i in get_files_with_ext(path2check, **kwargs)]
+
+
+def get_files_with_ext(path2check, ext: str = '*'):
     p = Path(path2check)
     # verify that we have an accurate directory
     # if so then list all .edf/.EDF files
     if p.is_dir():
-        print_log('Checking ' + str(path2check) + "for edf files.", 'debug')
-        edf_files = p.glob('*.[Ee][Dd][Ff]')  # make search case-insensitive
+        print_log('Checking ' + str(path2check) + " for '"+ext+"' files.", 'debug')
+        case_insensitive_ext = "".join(['['+a.upper()+a.lower()+']' if a.isalpha() else a for a in ext])
+        ext_files = p.glob('*.'+case_insensitive_ext)  # make search case-insensitive
     else:
         print_log(str(path2check) + " is not a valid directory.", 'debug')
-        edf_files = []
-    return list(edf_files)
+        ext_files = []
+    return list(ext_files)
 
 
 def get_signal_headers(edf_filename, verbose=False):
@@ -73,6 +102,7 @@ def rolling_window_nodelay(vec, window, step):
     if pad < 0:
         pad = 0
     return view_as_windows(np.pad(vec, (0, pad)), window, step).T
+
 
 '''
 To be removed after 10/10/2020:

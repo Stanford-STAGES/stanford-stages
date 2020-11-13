@@ -5,7 +5,6 @@ import numpy as np
 from pathlib import Path
 
 
-
 class AppConfig(object):
     edf_file: Path
 

@@ -3,7 +3,8 @@ from collections import namedtuple
 from pathlib import Path
 import copy
 import csv
-from inf_tools import print_log, get_edf_filenames, get_channel_labels
+import inf_tools
+from inf_tools import print_log
 import inf_narco_app as narcoApp
 
 
@@ -35,6 +36,16 @@ def run_using_json_file(json_file: str):
     with open(json_file, 'r') as fid:
         json_dict: dict = json.load(fid)
 
+    # bypass looking for edf data in the case when channel indices are not provided, the channel labels are provided and
+    # they are explicitly set to 'None'.
+    bypass_edf_check = json_dict.get('bypass_edf_check', False) or \
+                       'channel_indices' not in json_dict and 'channel_labels' in json_dict and all([label.lower() == 'none' for label in json_dict['channel_labels'].values()])
+
+    if bypass_edf_check:
+        # This will let us bypass the channel label configuration later without raising an exception.
+        json_dict['channel_indices'] = []
+        json_dict['bypass_edf_check'] = bypass_edf_check
+
     '''
     json_dict['channel_labels'] = {
         'central3': json_dict.pop('C3'),
@@ -50,7 +61,24 @@ def run_using_json_file(json_file: str):
     psg_path = None
     if 'edf_pathname' in json_dict:
         psg_path = json_dict.pop('edf_pathname')
-        edf_files = get_edf_filenames(psg_path)
+        if not bypass_edf_check:
+            edf_files = inf_tools.get_edf_filenames(psg_path)
+        else:
+            unwanted_edf_files = inf_tools.get_edf_files(psg_path)
+            # b = inf_tools.get_files_with_ext('F:\\jazz\\testing', 'h5')
+            h5_files = inf_tools.get_h5_files(psg_path)
+            if len(h5_files):
+                # determine basename of these files...
+                prefix_names = [b.stem.partition('.hypnodensity')[0] for b in h5_files]  # file1.hypnodensity.h5 and file1.h5 --> file1 and file1
+                # remove any duplicates that are found
+                prefix_names = list(set(prefix_names))
+                # then create mock-up .edf files with the remaining basenames, provided that they are not in the list of .edf files already.
+                edf_names = [b.stem.lower() for b in unwanted_edf_files]
+                p = Path(psg_path)
+                edf_files = []
+                for name in prefix_names:
+                    if name.lower() not in edf_names:
+                        edf_files.append(str(p / (name + '.edf')))
     elif 'edf_filename' in json_dict:
         edf_files = [json_dict.pop('edf_filename')]
     elif 'edf_files' in json_dict:
@@ -119,20 +147,34 @@ def run_using_json_file(json_file: str):
     pass_fail_dictionary = dict.fromkeys(edf_files, False)
     # Fail with warning if no .edf files are found ?
 
+    # Lights on/off order of preference is
+    # 1.  If there is a lights on/off file with an entry for the current .edf, its value is used
+    # 2.  If that is missing, then the lights_off and lights_on keys will be used if they are listed in the .json configuration file
+    # 3.  If this is missing, the default value will be None for each lights_off and lights_on field.
+    #     A value of None is handled as no entry given which and the entire study will be used
+    #     (i.e. lights out assumed to coincides with PSG start and lights on coincides with the end of the recording).
+    default_lights_off = json_dict.get("lights_off", None)
+    default_lights_on = json_dict.get("lights_on", None)
+
     for index, edfFile in enumerate(edf_files):
         try:  # ref: https://docs.python.org/3/tutorial/errors.html
             edf_filename = Path(edfFile).name
             msg = f'{index + 1:03d} / {num_edfs:03d}: {edf_filename}\t'
-
             print_log(msg, 'STAGES')
             # create a copy to avoid issues of making alteration below, such as channel indices ...
             cur_json_dict = copy.deepcopy(json_dict)
+            # Give some flexibility to whether the .edf file name is given or just the basename (sans extension)
+            file_key = None
             if edf_filename in lights_edf_dict:
-                cur_json_dict["lights_on"] = cur_json_dict[edf_filename].get("lights_on", 0)
-                cur_json_dict["lights_off"] = cur_json_dict[edf_filename].get("lights_off", 0)
-                print_log("Lights on: {cur_json_dict['lights_on']}, Lights off: {cur_json_dict['lights_off']}")
+                file_key = edf_filename
+            elif edf_filename.partition('.')[0] in lights_edf_dict:
+                file_key = edf_filename.partition('.')[0]
+            if file_key is not None:
+                cur_json_dict["lights_off"] = lights_edf_dict[file_key].get("lights_off", default_lights_off)
+                cur_json_dict["lights_on"] = lights_edf_dict[file_key].get("lights_on", default_lights_on)
+                print_log("Lights off: {cur_json_dict['lights_off']}, Lights on: {cur_json_dict['lights_on']}")
 
-            score, diagnosis_str = run_edf(edfFile, json_configuration=cur_json_dict)
+            score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
 
             if diagnosis_str is None:
@@ -160,7 +202,6 @@ def run_using_json_file(json_file: str):
                       '16 models and is not running with a greater selection of models. If this is the case, '
                       'delete the cached hypnodensity.pkl file and run the software again in order to create the '
                       'nesseary hypnodensity information for all models being used.')
-
         except:
             # print("Unexpected error:", sys.exc_info()[0])
             print_log("Unexpected error " + str(sys.exc_info()[0]) + ": " + str(sys.exc_info()[1]), 'error')
@@ -187,12 +228,11 @@ def run_using_json_file(json_file: str):
                 fail_index = fail_index + 1
 
 
-def run_edf(edf_file, json_configuration: {}):
+def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     if not isinstance(edf_file, type(Path)):
         edf_file = Path(edf_file)
-    if not edf_file.is_file():
+    if not bypass_edf_check and not edf_file.is_file():
         err_msg = 'edf_file is not a file'
-        # print(err_msg)
         raise RunStagesError(err_msg, edf_file)
 
     print_log("Processing {filename:s}".format(filename=str(edf_file)))
@@ -207,7 +247,7 @@ def run_edf(edf_file, json_configuration: {}):
             raise RunStagesError(err_msg, edf_file)
 
         edf_channel_indices_available = dict()
-        edf_channel_labels_found = get_channel_labels(edf_file)
+        edf_channel_labels_found = inf_tools.get_channel_labels(edf_file)
 
         for generic_label, edf_label in label_dictionary.items():
             if isinstance(edf_label, list):
@@ -256,13 +296,14 @@ def load_lights_from_csv_file(lights_filename):
         print_log("Lights filename does not exist: {lights_filename}", 'warning')
     else:
         with open(lights_filename) as fid:
-            f_csv = csv.DictReader(fid)
-            headings = next(f_csv)
-            Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
+            # f_csv = csv.DictReader(fid)
+            f_csv = csv.reader(fid)
+            # headings = next(f_csv)
+            #Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
             for line in f_csv:
-                row = Row(*line)
+                #row = Row(*line)
                 lights_dict[line[0]] = dict(zip(('lights_on', 'lights_off'), line[1:2]))
-                lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
+                #lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
 
     return lights_dict
 
