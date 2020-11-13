@@ -153,8 +153,9 @@ def run_using_json_file(json_file: str):
     # 3.  If this is missing, the default value will be None for each lights_off and lights_on field.
     #     A value of None is handled as no entry given which and the entire study will be used
     #     (i.e. lights out assumed to coincides with PSG start and lights on coincides with the end of the recording).
-    default_lights_off = json_dict.get("lights_off", None)
-    default_lights_on = json_dict.get("lights_on", None)
+
+    default_lights_off = json_dict.get("inf_config", {}).get("lights_off", None)
+    default_lights_on = json_dict.get("inf_config", {}).get("lights_on", None)
 
     for index, edfFile in enumerate(edf_files):
         try:  # ref: https://docs.python.org/3/tutorial/errors.html
@@ -170,9 +171,10 @@ def run_using_json_file(json_file: str):
             elif edf_filename.partition('.')[0] in lights_edf_dict:
                 file_key = edf_filename.partition('.')[0]
             if file_key is not None:
-                cur_json_dict["lights_off"] = lights_edf_dict[file_key].get("lights_off", default_lights_off)
-                cur_json_dict["lights_on"] = lights_edf_dict[file_key].get("lights_on", default_lights_on)
-                print_log("Lights off: {cur_json_dict['lights_off']}, Lights on: {cur_json_dict['lights_on']}")
+                cur_json_dict["inf_config"]["lights_off"] = lights_edf_dict[file_key].get("lights_off", default_lights_off)
+                cur_json_dict["inf_config"]["lights_on"] = lights_edf_dict[file_key].get("lights_on", default_lights_on)
+                print_log(f"Lights off: {cur_json_dict['inf_config']['lights_off']}, Lights on: "
+                          f"{cur_json_dict['inf_config']['lights_on']}")
 
             score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
