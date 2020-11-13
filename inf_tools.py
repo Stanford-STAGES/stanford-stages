@@ -80,6 +80,25 @@ def get_channel_labels(edf_filename):
     return [fields["label"] for fields in channel_headers]
 
 
+def get_study_starttime(edf_filename, verbose=False):
+    if verbose:
+        print("Reading start time from ", edf_filename)
+    try:
+        edf_r = EdfReader(str(edf_filename), annotations_mode=False, check_file_size=False)
+        return edf_r.getStartdatetime()
+    except:
+        print("Failed reading headers from ", str(edf_filename))
+        return None
+
+
+def get_study_starttime_as_seconds(edf_filename, **kwargs):
+    start_datetime = get_study_starttime(edf_filename, **kwargs)
+    if start_datetime is not None:
+        return start_datetime.hour*3600+start_datetime.minute*60+start_datetime.second
+    else:
+        return None
+
+
 def softmax(x):
     e_x = np.exp(x)
     div = np.repeat(np.expand_dims(np.sum(e_x, axis=1), 1), 5, axis=1)

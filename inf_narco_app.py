@@ -133,6 +133,7 @@ def main(edf_filename: str = None,
                 else:
                     app_config.channels_used[channel_label] = channel_index
 
+
     # app_config.lightsOff = config_input.get('lightsOff', [])
     # app_config.lightsOn = config_input.get('lightsOn', [])
     # app_config.audit.update(config_input.get('audit',{}))
@@ -280,6 +281,17 @@ def main(edf_filename: str = None,
 
     return prediction, diagnosis
 
+
+def time2elapsedseconds(edf_file, time_value):
+    if isinstance(time_value, str) and ":" in time_value:
+        if edf_file is None or not edf_file.exists():
+            raise(ValueError('Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
+        else:
+            study_start_time_seconds = edf_file.start_time
+            elapsed_seconds = study_start_time_seconds
+            return elapsed_seconds
+    else:
+        return time_value
 
 def change_file_extension(fullname, new_extension):
     basename, _ = os.path.splitext(fullname)

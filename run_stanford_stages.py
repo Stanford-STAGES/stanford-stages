@@ -240,6 +240,10 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     print_log("Processing {filename:s}".format(filename=str(edf_file)))
     # display_set_selection(edf_channel_labels_found)
 
+    if 'inf_config' in json_configuration:
+        json_configuration['inf_config']['lights_off'] = edftime2elapsedseconds(edf_file, json_configuration['inf_config'].get('lights_off', None))
+        json_configuration['inf_config']['lights_on'] = edftime2elapsedseconds(edf_file, json_configuration['inf_config'].get('lights_on', None))
+
     # Build up our dictionary / channel index mapping
     if 'channel_indices' not in json_configuration:
         label_dictionary = json_configuration.get("channel_labels", None)
@@ -308,6 +312,29 @@ def load_lights_from_csv_file(lights_filename):
                 #lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
 
     return lights_dict
+
+
+def edftime2elapsedseconds(edf_file, time_value):
+    if isinstance(time_value, str) and ":" in time_value:
+        if edf_file is None or not Path(edf_file).exists():
+            raise(ValueError('Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
+        else:
+            study_start_time_seconds = inf_tools.get_study_starttime_as_seconds(edf_file)
+            if study_start_time_seconds is None:
+                raise(RunStagesError('Unable to find start time for edf file'))
+            time_hh_mm_ss = time_value.split(':')
+            convert_hh_mm_ss = [3600, 60, 1, 0.001]
+            time_value_seconds = 0
+            for idx, value in enumerate(time_hh_mm_ss):
+                time_value_seconds = time_value_seconds + int(value)*convert_hh_mm_ss[idx]
+
+            elapsed_seconds = time_value_seconds - study_start_time_seconds
+            if elapsed_seconds < 0:
+                elapsed_seconds = elapsed_seconds+24*3600
+    else:
+        elapsed_seconds = time_value
+
+    return elapsed_seconds
 
 
 def print_usage(tool_name='run_stanford_stages.py'):
