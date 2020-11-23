@@ -110,6 +110,42 @@ class Hypnodensity(object):
             audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
             fp.write(audit_str)
 
+    def export_features(self, p=None):
+        _features = self.get_features()
+        if not isinstance(p, Path):
+            p = Path(p)
+        if isinstance(p, Path):
+            try:
+                in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+                if in_a_pickle:
+                    with p.open('wb') as fp:
+                        pickle.dump(_features, fp)
+                else:
+                    with h5py.File(p, 'w') as fp:
+                        fp['features'] = _features
+                print(f'Hypnodensity features saved to "{str(p)}"')
+                return True
+            except:
+                print(f'EXCEPTION caught while saving hypnodensity features to {str(p)}. FAIL.\n')
+                return False
+        else:
+            print('Not an instance of Path')
+            return False
+
+    def import_features(self, p=None):
+        if isinstance(p, Path) and p.exists():
+            self.myprint('Loading previously saved hypnodensity features')
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            if in_a_pickle:
+                with p.open('rb') as fp:
+                    self.features = pickle.load(fp)
+            else:
+                with h5py.File(p, 'r') as fp:
+                    self.features = fp['features'][()]
+            return True
+        else:
+            return False
+
     def export_hypnodensity(self, p=None):
         if isinstance(p, Path):
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
@@ -304,13 +340,25 @@ class Hypnodensity(object):
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
-    def get_features(self, model_name: str, idx: int):
-        """
-        :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
-        :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
-        :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
-        (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
-        """
+    def get_all_features(self, model_name: str, idx: int):
+        # check if we already have them or if they can be loaded...
+        #if we already have them
+        try:
+            x = self._hypnodensity_features[model_name][idx]
+        except KeyError:
+            
+
+        if model_
+
+            return them
+        elif wecan import them:
+            import them
+            return them
+        otherwise
+            calculate them
+            save_locally, and return them
+            return them
+
         _hypnodensity = self.hypnodensity[idx]
         epoch_len: int = 15
         bad_signal_events_1_sec = self.get_signal_quality_events()
@@ -329,10 +377,19 @@ class Hypnodensity(object):
         # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
         # configuration is currently setup for 15 second epochs (magic).
         # segments are .25 second and we have 60 of them
-
-        selected_features = self.config.narco_prediction_selected_features
         x = self.features.extract(_hypnodensity)
         x = self.features.scale_features(x, model_name)
+
+
+    def get_selected_features(self, model_name: str, idx: int):
+        """
+        :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
+        :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
+        :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
+        (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
+        """
+        x = self.get_features(*args)
+        selected_features = self.config.narco_prediction_selected_features
         return x[selected_features].T
 
     def encoding(self):

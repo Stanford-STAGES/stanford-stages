@@ -9,6 +9,7 @@ import json  # for command line interface input and output.
 import os, sys, warnings
 from pathlib import Path
 import logging
+import h5py
 # from asyncore import file_dispatcher
 from datetime import datetime
 # from typing import Any, Union
@@ -377,7 +378,6 @@ class NarcoApp(object):
         np.savetxt(filename, hypno, delimiter=",")
 
     def save_hypnogram(self, filename='', epoch_len: int = 15):
-
         if filename == '':
             if epoch_len == 30:
                 # for 30 second epochs
@@ -387,6 +387,11 @@ class NarcoApp(object):
 
         hypno = self.get_hypnogram(epoch_len)
         np.savetxt(filename, hypno, delimiter=",", fmt='%i')
+
+    def save_features(self, filename=''):
+        if filename == '':
+            filename = change_file_extension(self.edf_path, 'features.h5')
+        self._hypnodensity.export_features(Path(filename))
 
     def audit(self, method_to_audit, audit_label, *args):
         start_time = time.time()
@@ -399,14 +404,13 @@ class NarcoApp(object):
     def get_narco_gpmodels(self):
         return self.models_used
 
-    def get_hypnodensity_features(self, model_name, idx):
-        return self._hypnodensity.get_features(model_name, idx)
-
     def get_num_hypnodensity_models_used(self):
         return self._hypnodensity.get_num_hypnodensities()
 
-    def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
+    def get_hypnodensity_features(self, *args):
+        return self._hypnodensity.get_features(*args)
 
+    def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
         scales = self.config.narco_prediction_scales
         gp_models_base_path = self.config.narco_classifier_path
         gp_models = {gp_model:os.path.join(gp_models_base_path, gp_model) for gp_model in self.get_narco_gpmodels() if
@@ -428,9 +432,7 @@ class NarcoApp(object):
                          num_models_expected, num_hypnodenisty_models, gp_models_base_path)
             raise StanfordStagesError(f'Narcolepsy prediction model count ({num_models_expected}) mismatch with '
                                       f'hypnodensity model count found ({num_hypnodenisty_models})', self.edf_filename)
-
         num_folds = self.config.narco_prediction_num_folds
-
         num_paths_expected = num_models * num_folds
         paths_missing = []
         for (gp_model, model_path) in gp_models.items():
