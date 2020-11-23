@@ -253,9 +253,15 @@ class Hypnodensity(object):
 
         lights_on_mask = np.ones(av.shape[0]) == 1
         epoch_len: int = 15
+        # Zero out portion with lights off
         lights_on_mask[self.config.get_lights_off_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
         av[lights_on_mask, :] = np.nan
 
+        bad_signal_events_1_sec = self.get_signal_quality_events()
+        bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
+        # remove any sections identified with flatline
+        for start_stop in bad_signal_epoch_len:
+            av[start_stop[0]:start_stop[1], :] = np.nan
         return av
 
     # returns the number of hypnodensities available - this will correspond to the number of models used during the
@@ -305,10 +311,22 @@ class Hypnodensity(object):
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
         (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
+        _hypnodensity = self.hypnodensity[idx]
+        epoch_len: int = 15
+        bad_signal_events_1_sec = self.get_signal_quality_events()
+        bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal_events_1_sec]
+        # remove any sections identified with flatline or other bad signal data found
+        for start_stop in bad_signal_15_sec:
+            _hypnodensity[start_stop[0]:start_stop[1], :] = np.nan
+
         lights_off_epoch = self.config.get_lights_off_epoch()
         lights_on_epoch = self.config.get_lights_on_epoch()
+
+        # Only consider data between lights off and lights on.
+        _hypnodensity = _hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
+
         # self.hypnodensity is a list of numpy arrays.
-        _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
+        # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
         # configuration is currently setup for 15 second epochs (magic).
         # segments are .25 second and we have 60 of them
 
@@ -490,7 +508,6 @@ class Hypnodensity(object):
                 self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
                                                                 window=('kaiser', 5.0))
 
-
     def psg_noise_level(self):
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
@@ -555,8 +572,6 @@ class Hypnodensity(object):
 
     def score_data(self):
         self.hypnodensity = list()
-        # bad_signal = self.get_signal_quality_events()
-        # bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal]
 
         # bad_blocks = self.get_inf_nan_encoded_blocks()
         # self.encoded_data[:, bad_blocks] = 0
@@ -569,19 +584,15 @@ class Hypnodensity(object):
         # flatline_15_sec = []
         for l in self.config.models_used:
             hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
-            # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
-            # remove any sections identified with flatline
-            #for bad_signal_start_stop in bad_signal_15_sec:
-            #    hyp[bad_signal_start_stop[0]:bad_signal_start_stop[1], :] = np.nan
             self.hypnodensity.append(hyp)
 
-    # Returns a np.2darray of the start and step times (elapsed times in seconds from start of the psg)
+    # Returns a np.2darray of the start and stop times (elapsed times in seconds from start of the psg)
     # of events annotated as bad quality.  Data in these locations will be replaced with nan values.
     def get_signal_quality_events(self):
         # See if there is a file with the same name as the
         bad_data_file = Path(self.edf_filename)
-        data_quality_file = Path(self.config.filename["data_quality"])
+        data_quality_file = Path(self.config.filename["bad_data"])
         # self.load_signal_quality_events(bP)
         quality_control_events = []
         if data_quality_file.exists():

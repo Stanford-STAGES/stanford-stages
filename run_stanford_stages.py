@@ -128,6 +128,17 @@ def run_using_json_file(json_file: str):
     # Put this back into our json configuration ...
     json_dict['output_path'] = str(output_path)
 
+    # Check for .evt file(s) containing start/stop events to exclude from the analysis (e.g. bad data)
+    data_exclusion_key = 'exclusion_events_pathname'
+    data_exclusion_path = json_dict.get(data_exclusion_key, None)
+    if data_exclusion_path is not None:
+        data_exclusion_path = Path(data_exclusion_path)
+        if not data_exclusion_path.is_dir():
+            print_log(f'A {data_exclusion_key} entry was found in the json file, but the path ("{str(data_exclusion_path)}") could not be found', 'warning')
+            data_exclusion_path = None
+        else:
+            print_log(f'Using "{str(data_exclusion_path)}" as path containing data exclusion event file(s).')
+
     # Check for .csv file containing lights out/on information
     lights_filename_key = 'lights_filename'
     lights_edf_dict = {}
@@ -175,6 +186,14 @@ def run_using_json_file(json_file: str):
                 cur_json_dict["inf_config"]["lights_on"] = lights_edf_dict[file_key].get("lights_on", default_lights_on)
                 print_log(f"Lights off: {cur_json_dict['inf_config']['lights_off']}, Lights on: "
                           f"{cur_json_dict['inf_config']['lights_on']}")
+
+            if data_exclusion_path is not None:
+                #  data_exclusion_filename = str(data_exclusion_path / (edf_filename.partition('.')[0] + '.evt'))
+                # cur_json_dict['bad_data_events'] = get_bad_data_events(data_exclusion_filename)
+                data_exclusion_path  = data_exclusion_path / (edf_filename.partition('.')[0] + '.evt')
+                if data_exclusion_path.is_file():
+                    json_dict["inf_config"]["bad_data_filename"] = str(data_exclusion_path)
+
 
             score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
@@ -296,10 +315,25 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     return narcoApp.main(str(edf_file), json_configuration)
 
 
+def get_bad_data_events(events_filename):
+    events_dict = {}
+    if not Path(events_filename).exists():
+        print_log(f"File containing events to exclude not found: {events_filename}", 'warning')
+    else:
+        with open(events_filename) as fid:
+            f_csv = csv.reader(fid)
+            for line in f_csv:
+                start = line[0]
+                stop = line[1]
+                if start not in events_dict or float(stop) > float(events_dict[start]):
+                    events_dict[start] = stop
+    return events_dict
+
+
 def load_lights_from_csv_file(lights_filename):
     lights_dict: dict = {}
     if not Path(lights_filename).exists():
-        print_log("Lights filename does not exist: {lights_filename}", 'warning')
+        print_log(f"Lights filename does not exist: {lights_filename}", 'warning')
     else:
         with open(lights_filename) as fid:
             # f_csv = csv.DictReader(fid)

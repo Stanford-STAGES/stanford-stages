@@ -119,6 +119,8 @@ def main(edf_filename: str = None,
                     continue
                 else:
                     setattr(app_config, key, value)
+    else:
+        config_dict = {}
 
     # Bypassing the edf check is useful in cases where the edf has already been processed to an .h5 encoding file
     # or hypnodensity file and the edf is no longer necessary (and perhaps removed for storage reasons)
@@ -157,7 +159,7 @@ def main(edf_filename: str = None,
     hyp['save']['diagnosis'] = False
     hyp['save']['encoding'] = True
 
-    hyp['filename']['data_quality'] = change_file_extension(edf_filename, '.evt')
+    hyp['filename']['bad_data'] = config_dict.get('bad_data_filename', change_file_extension(edf_filename, '.evt'))
     encoding_filename = output_path / (edf_file.stem + '.h5')
     hyp['filename']['hypnodensity_pkl'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
     hyp['filename']['hypnodensity_h5'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
