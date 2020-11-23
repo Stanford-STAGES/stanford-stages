@@ -8,6 +8,7 @@ Created on Wed Jul 12 23:58:10 2017
 # from: inf_eval --> to: inf_generate_hypnodensity
 """
 import json
+import traceback
 import pickle
 import time  # for auditing code speed.
 from pathlib import Path
@@ -123,18 +124,20 @@ class Hypnodensity(object):
                         pickle.dump(_features, fp)
                 else:
                     with h5py.File(p, 'w') as fp:
-                        fp['features'] = _features
+                        for model, values in _features.items():
+                            fp[model] = values
                 print(f'Hypnodensity features saved to "{str(p)}"')
                 return True
             except:
                 print(f'EXCEPTION caught while saving hypnodensity features to {str(p)}. FAIL.\n')
+                traceback.print_exc()
                 return False
         else:
             print('Not an instance of Path')
             return False
 
     # Rturns the imported hypnodensity model features on success.  Otherwise returns None
-    def import_model_features(self, p=None, model=None, idx=None):
+    def import_model_features(self, p=None, model=None):
         _features = None
         if isinstance(p, Path) and p.exists():
             self.myprint('Loading previously saved hypnodensity features')
@@ -143,13 +146,14 @@ class Hypnodensity(object):
                 with p.open('rb') as fp:
                     _features = pickle.load(fp)
             else:
+                _features = {}
                 with h5py.File(p, 'r') as fp:
-                    _features = fp['features'][()]
-            if model is None and idx is None:
+                    _features = {k:fp[k][()] for k in fp.keys()}
+            if model is None:
                 self.hypnodensity_features = _features
-            elif model is not None and idx is not None:
-                _features = _features[model][idx]
-                self.set_model_features(_features, model, idx)
+            elif model in _features:
+                self.hypnodensity_features[model] = _features[model]
+                _features = _features[model]
             else:
                 print('import_features requires that either that model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
         return _features
@@ -298,11 +302,13 @@ class Hypnodensity(object):
         lights_on_mask = np.ones(av.shape[0]) == 1
         epoch_len: int = 15
         # Zero out portion with lights off
-        lights_on_mask[self.config.get_lights_off_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+        lights_on_mask[self.config.get_lights_off_epoch(epoch_len=epoch_len):self.config.get_lights_on_epoch(epoch_len=epoch_len)] = False
         av[lights_on_mask, :] = np.nan
 
         bad_signal_events_1_sec = self.get_signal_quality_events()
         bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
+        # Consider also -->  inf_config.sec2epoch(sec=bad_signal_events_1_sec, epoch_len=epoch_len)
+
         # remove any sections identified with flatline
         for start_stop in bad_signal_epoch_len:
             av[start_stop[0]:start_stop[1], :] = np.nan
@@ -350,26 +356,27 @@ class Hypnodensity(object):
 
     def get_model_features(self, model_name: str, idx: int):
         # check if we already have them or if they can be loaded...
-        x = None
-        try:
-            # if we already have them
+
+        # if we already have them
+        if model_name in self.hypnodensity_features:
             x = self.hypnodensity_features[model_name][idx]
-        except KeyError:
-            x = self.import_model_features(model_name, idx)
+        else:
+            x = self.import_model_features(model_name)
         if x is None:
             _hypnodensity = self.hypnodensity[idx]
             epoch_len: int = 15
             bad_signal_events_1_sec = self.get_signal_quality_events()
-            bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal_events_1_sec]
+            bad_signal_15_sec = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
+
             # remove any sections identified with flatline or other bad signal data found
             for start_stop in bad_signal_15_sec:
                 _hypnodensity[start_stop[0]:start_stop[1], :] = np.nan
 
-            lights_off_epoch = self.config.get_lights_off_epoch()
-            lights_on_epoch = self.config.get_lights_on_epoch()
+            lights_off_epoch = self.config.get_lights_off_epoch(epoch_len=epoch_len)
+            lights_on_epoch = self.config.get_lights_on_epoch(epoch_len=epoch_len)
 
             # Only consider data between lights off and lights on.
-            _hypnodensity = _hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
+            _hypnodensity = _hypnodensity[lights_off_epoch:lights_on_epoch, :]
 
             # self.hypnodensity is a list of numpy arrays.
             # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
@@ -377,7 +384,7 @@ class Hypnodensity(object):
             # segments are .25 second and we have 60 of them
             x = self.features.extract(_hypnodensity)
             x = self.features.scale_features(x, model_name)
-            self.set_model_features(x, model_name, idx)
+            self.hypnodensity_features[model_name] = x
         return x
 
     def get_selected_features(self, model_name: str, idx: int):

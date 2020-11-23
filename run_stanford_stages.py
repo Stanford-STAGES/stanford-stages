@@ -68,8 +68,9 @@ def run_using_json_file(json_file: str):
             # b = inf_tools.get_files_with_ext('F:\\jazz\\testing', 'h5')
             h5_files = inf_tools.get_h5_files(psg_path)
             if len(h5_files):
-                # determine basename of these files...
-                prefix_names = [b.stem.partition('.hypnodensity')[0] for b in h5_files]  # file1.hypnodensity.h5 and file1.h5 --> file1 and file1
+                # determine basename of these files... note that we currently save .features and .hypnodensity files with .h5 suffx
+                # as well as encoding files
+                prefix_names = [b.stem.partition('.hypnodensity')[0].partition('.features')[0] for b in h5_files]  # file1.hypnodensity.h5 and file1.h5 --> file1 and file1
                 # remove any duplicates that are found
                 prefix_names = list(set(prefix_names))
                 # then create mock-up .edf files with the remaining basenames, provided that they are not in the list of .edf files already.

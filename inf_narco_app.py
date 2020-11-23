@@ -167,10 +167,11 @@ def main(edf_filename: str = None,
     encoding_filename = output_path / (edf_file.stem + '.h5')
     hyp['filename']['hypnodensity_pkl'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
     hyp['filename']['hypnodensity_h5'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
-    hyp['filename']['features_h5'] = change_file_extension(encoding_filename, '.features.h5')
     hyp['filename']['hypnodensity_txt'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(encoding_filename, '.hypnogram.txt')
     hyp['filename']['hypnogram_30_sec'] = change_file_extension(encoding_filename, '.hypnogram.sta')
+    hyp['filename']['features_h5'] = change_file_extension(encoding_filename, '.features.h5')
+    hyp['filename']['features_pkl'] = change_file_extension(encoding_filename, '.features.pkl')
     hyp['filename']['diagnosis'] = change_file_extension(encoding_filename, '.diagnosis.txt')
     hyp['filename']['plot'] = change_file_extension(encoding_filename, '.hypnodensity.png')
     hyp['filename']['encoding'] = encoding_filename
@@ -272,20 +273,27 @@ def main(edf_filename: str = None,
         if hypno_config['save']['hypnodensity_txt']:
             narco_app.save_hypnodensity(filename=hypno_config['filename']['hypnodensity_txt'])
 
-        if hypno_config['save']['features_h5']:
+        # The following portion concerns the narcolepsy classification partion
+        requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
+        if requires_features:
+            narco_app.import_model_features()
             narco_app.calculate_all_hypnodensity_features()
-            narco_app.save_features(filename=hypno_config['filename']['features_h5'])
+            if hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl']:
+                if hypno_config['save']['features_h5']:
+                    narco_app.save_features(filename=hypno_config['filename']['features_h5'])
+                if hypno_config['save']['features_pkl']:
+                    narco_app.save_features(filename=hypno_config['filename']['features_pkl'])
 
-        if hypno_config['show']['diagnosis']:
-            print(narco_app.get_diagnosis())
+            if hypno_config['show']['diagnosis']:
+                print(narco_app.get_diagnosis())
 
-        if hypno_config['save']['diagnosis']:
-            narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
+            if hypno_config['save']['diagnosis']:
+                narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
 
+        # This concerns what is displayed to the screen
         if not app_config.encodeOnly:
             render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
                                 save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
-
         if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
             prediction = narco_app.narcolepsy_probability[0]
             diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
@@ -307,6 +315,7 @@ def time2elapsedseconds(edf_file, time_value):
             return elapsed_seconds
     else:
         return time_value
+
 
 def change_file_extension(fullname, new_extension):
     basename, _ = os.path.splitext(fullname)
@@ -419,10 +428,16 @@ class NarcoApp(object):
     def get_num_hypnodensity_models_used(self):
         return self._hypnodensity.get_num_hypnodensities()
 
-    def calculate_all_hypnodensity_features(self):
+    def calculate_all_hypnodensity_features(self, import_ok: bool = True):
+        _features = None
+        if import_ok:
+            _features = self._hypnodensity.import_model_features()
+        if _features is None:
+            _features = dict()
         for idx, gpmodel in enumerate(self.get_narco_gpmodels()):
-            print(f'Calculating features of hypnodensity[{gpmodel}][{idx}]')
-            self.get_hypnodensity_features(gpmodel, idx)
+            if gpmodel not in _features:
+                print(f'Calculating features of hypnodensity[{gpmodel}][{idx}]')
+                self.get_hypnodensity_features(gpmodel, idx)
 
     def get_hypnodensity_features(self, *args):
         features = self._hypnodensity.import_model_features()
