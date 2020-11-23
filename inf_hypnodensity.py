@@ -50,6 +50,7 @@ class Hypnodensity(object):
     def __init__(self, app_config):
         self.config = app_config
         self.hypnodensity = list()
+        self.hypnodensity_features = {}
         self.flatline = []
         self.features = HypnodensityFeatures(app_config)
         self.edf: pyedflib.EdfFileReader = []
@@ -111,7 +112,7 @@ class Hypnodensity(object):
             fp.write(audit_str)
 
     def export_features(self, p=None):
-        _features = self.get_features()
+        _features = self.hypnodensity_features
         if not isinstance(p, Path):
             p = Path(p)
         if isinstance(p, Path):
@@ -132,19 +133,26 @@ class Hypnodensity(object):
             print('Not an instance of Path')
             return False
 
-    def import_features(self, p=None):
+    # Rturns the imported hypnodensity model features on success.  Otherwise returns None
+    def import_model_features(self, p=None, model=None, idx=None):
+        _features = None
         if isinstance(p, Path) and p.exists():
             self.myprint('Loading previously saved hypnodensity features')
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
             if in_a_pickle:
                 with p.open('rb') as fp:
-                    self.features = pickle.load(fp)
+                    _features = pickle.load(fp)
             else:
                 with h5py.File(p, 'r') as fp:
-                    self.features = fp['features'][()]
-            return True
-        else:
-            return False
+                    _features = fp['features'][()]
+            if model is None and idx is None:
+                self.hypnodensity_features = _features
+            elif model is not None and idx is not None:
+                _features = _features[model][idx]
+                self.set_model_features(_features, model, idx)
+            else:
+                print('import_features requires that either that model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
+        return _features
 
     def export_hypnodensity(self, p=None):
         if isinstance(p, Path):
@@ -340,46 +348,37 @@ class Hypnodensity(object):
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
-    def get_all_features(self, model_name: str, idx: int):
+    def get_model_features(self, model_name: str, idx: int):
         # check if we already have them or if they can be loaded...
-        #if we already have them
+        x = None
         try:
-            x = self._hypnodensity_features[model_name][idx]
+            # if we already have them
+            x = self.hypnodensity_features[model_name][idx]
         except KeyError:
-            
+            x = self.import_model_features(model_name, idx)
+        if x is None:
+            _hypnodensity = self.hypnodensity[idx]
+            epoch_len: int = 15
+            bad_signal_events_1_sec = self.get_signal_quality_events()
+            bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal_events_1_sec]
+            # remove any sections identified with flatline or other bad signal data found
+            for start_stop in bad_signal_15_sec:
+                _hypnodensity[start_stop[0]:start_stop[1], :] = np.nan
 
-        if model_
+            lights_off_epoch = self.config.get_lights_off_epoch()
+            lights_on_epoch = self.config.get_lights_on_epoch()
 
-            return them
-        elif wecan import them:
-            import them
-            return them
-        otherwise
-            calculate them
-            save_locally, and return them
-            return them
+            # Only consider data between lights off and lights on.
+            _hypnodensity = _hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
 
-        _hypnodensity = self.hypnodensity[idx]
-        epoch_len: int = 15
-        bad_signal_events_1_sec = self.get_signal_quality_events()
-        bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal_events_1_sec]
-        # remove any sections identified with flatline or other bad signal data found
-        for start_stop in bad_signal_15_sec:
-            _hypnodensity[start_stop[0]:start_stop[1], :] = np.nan
-
-        lights_off_epoch = self.config.get_lights_off_epoch()
-        lights_on_epoch = self.config.get_lights_on_epoch()
-
-        # Only consider data between lights off and lights on.
-        _hypnodensity = _hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
-
-        # self.hypnodensity is a list of numpy arrays.
-        # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
-        # configuration is currently setup for 15 second epochs (magic).
-        # segments are .25 second and we have 60 of them
-        x = self.features.extract(_hypnodensity)
-        x = self.features.scale_features(x, model_name)
-
+            # self.hypnodensity is a list of numpy arrays.
+            # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
+            # configuration is currently setup for 15 second epochs (magic).
+            # segments are .25 second and we have 60 of them
+            x = self.features.extract(_hypnodensity)
+            x = self.features.scale_features(x, model_name)
+            self.set_model_features(x, model_name, idx)
+        return x
 
     def get_selected_features(self, model_name: str, idx: int):
         """
@@ -388,7 +387,7 @@ class Hypnodensity(object):
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
         (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
-        x = self.get_features(*args)
+        x = self.get_model_features(model_name, idx)
         selected_features = self.config.narco_prediction_selected_features
         return x[selected_features].T
 

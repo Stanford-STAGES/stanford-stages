@@ -192,8 +192,7 @@ def run_using_json_file(json_file: str):
                 # cur_json_dict['bad_data_events'] = get_bad_data_events(data_exclusion_filename)
                 data_exclusion_path  = data_exclusion_path / (edf_filename.partition('.')[0] + '.evt')
                 if data_exclusion_path.is_file():
-                    json_dict["inf_config"]["bad_data_filename"] = str(data_exclusion_path)
-
+                    cur_json_dict["inf_config"]["bad_data_filename"] = str(data_exclusion_path)
 
             score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
@@ -219,10 +218,10 @@ def run_using_json_file(json_file: str):
         except IndexError as err:
             print_log("{0}: {1}".format(type(err).__name__, err), 'error')
             traceback.print_exc()
-            print_log('An IndexError may be raised if a the application was running previously with a subset of all '
-                      '16 models and is not running with a greater selection of models. If this is the case, '
-                      'delete the cached hypnodensity.pkl file and run the software again in order to create the '
-                      'nesseary hypnodensity information for all models being used.')
+            print_log('An IndexError may be raised if the application was previously run with a subset of all '
+                      '16 models and is now using a greater or different selection of models. Try deleting the'
+                      'cached hypnodensity.(pkl/h5) file(s) and run the software again to generate the '
+                      'necessary hypnodensity information for the current configurition.')
         except:
             # print("Unexpected error:", sys.exc_info()[0])
             print_log("Unexpected error " + str(sys.exc_info()[0]) + ": " + str(sys.exc_info()[1]), 'error')

@@ -100,8 +100,8 @@ def main(edf_filename: str = None,
 
     output_path = Path(config_input.get("output_path", edf_file.parent))
 
-    config_dict = config_input.get("inf_config", None)
-    if isinstance(config_dict, dict):
+    inf_config_dict = config_input.get("inf_config", None)
+    if isinstance(inf_config_dict, dict):
         keys_to_check = list(vars(app_config))
         # Add these properties
         properties = ['lights_off', 'lights_on']
@@ -114,14 +114,14 @@ def main(edf_filename: str = None,
         #     keys_to_check.append('lights_on')
 
         for key in keys_to_check:
-            if key in config_dict and key != 'channels_used':
-                value = config_dict[key]
+            if key in inf_config_dict and key != 'channels_used':
+                value = inf_config_dict[key]
                 if isinstance(value, list) and not len(value):
                     continue
                 else:
                     setattr(app_config, key, value)
     else:
-        config_dict = {}
+        inf_config_dict = {}
 
     # Bypassing the edf check is useful in cases where the edf has already been processed to an .h5 encoding file
     # or hypnodensity file and the edf is no longer necessary (and perhaps removed for storage reasons)
@@ -159,11 +159,15 @@ def main(edf_filename: str = None,
 
     hyp['save']['diagnosis'] = False
     hyp['save']['encoding'] = True
+    hyp['save']['features'] = None
+    hyp['save']['features_pkl'] = False
+    hyp['save']['features_h5'] = False
 
-    hyp['filename']['bad_data'] = config_dict.get('bad_data_filename', change_file_extension(edf_filename, '.evt'))
+    hyp['filename']['bad_data'] = inf_config_dict.get('bad_data_filename', change_file_extension(edf_filename, '.evt'))
     encoding_filename = output_path / (edf_file.stem + '.h5')
     hyp['filename']['hypnodensity_pkl'] = change_file_extension(encoding_filename, '.hypnodensity.pkl')
     hyp['filename']['hypnodensity_h5'] = change_file_extension(encoding_filename, '.hypnodensity.h5')
+    hyp['filename']['features_h5'] = change_file_extension(encoding_filename, '.features.h5')
     hyp['filename']['hypnodensity_txt'] = change_file_extension(encoding_filename, '.hypnodensity.txt')
     hyp['filename']['hypnogram'] = change_file_extension(encoding_filename, '.hypnogram.txt')
     hyp['filename']['hypnogram_30_sec'] = change_file_extension(encoding_filename, '.hypnogram.sta')
@@ -183,6 +187,10 @@ def main(edf_filename: str = None,
         hyp['save']['hypnodensity_txt'] = hyp['save']['hypnodensity']
         hyp['save']['hypnodensity_h5'] = hyp['save']['hypnodensity']
         hyp['save']['hypnodensity_pkl'] = hyp['save']['hypnodensity']
+
+    if hyp['save']['features'] is not None:
+        hyp['save']['features_h5'] = hyp['save']['features']
+        hyp['save']['features_pkl'] = hyp['save']['features']
 
     # hyp['save'].update(config_input.get('save', {}))
     # hyp['show'].update(config_input.get('show', {}))
@@ -263,6 +271,10 @@ def main(edf_filename: str = None,
 
         if hypno_config['save']['hypnodensity_txt']:
             narco_app.save_hypnodensity(filename=hypno_config['filename']['hypnodensity_txt'])
+
+        if hypno_config['save']['features_h5']:
+            narco_app.calculate_all_hypnodensity_features()
+            narco_app.save_features(filename=hypno_config['filename']['features_h5'])
 
         if hypno_config['show']['diagnosis']:
             print(narco_app.get_diagnosis())
@@ -407,8 +419,14 @@ class NarcoApp(object):
     def get_num_hypnodensity_models_used(self):
         return self._hypnodensity.get_num_hypnodensities()
 
+    def calculate_all_hypnodensity_features(self):
+        for idx, gpmodel in enumerate(self.get_narco_gpmodels()):
+            print(f'Calculating features of hypnodensity[{gpmodel}][{idx}]')
+            self.get_hypnodensity_features(gpmodel, idx)
+
     def get_hypnodensity_features(self, *args):
-        return self._hypnodensity.get_features(*args)
+        features = self._hypnodensity.import_model_features()
+        return self._hypnodensity.get_model_features(*args)
 
     def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
         scales = self.config.narco_prediction_scales
