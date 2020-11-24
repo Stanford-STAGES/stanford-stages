@@ -276,8 +276,7 @@ def main(edf_filename: str = None,
         # The following portion concerns the narcolepsy classification partion
         requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
         if requires_features:
-            narco_app.import_model_features()
-            narco_app.calculate_all_hypnodensity_features()
+            narco_app.calculate_all_hypnodensity_features(import_ok=True)
             if hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl']:
                 if hypno_config['save']['features_h5']:
                     narco_app.save_features(filename=hypno_config['filename']['features_h5'])
@@ -431,17 +430,27 @@ class NarcoApp(object):
     def calculate_all_hypnodensity_features(self, import_ok: bool = True):
         _features = None
         if import_ok:
-            _features = self._hypnodensity.import_model_features()
+            h = Path(self.config.filename["features_h5"])
+            if h.exists():
+                _features = self._hypnodensity.import_model_features(h)
+            else:
+                h = Path(self.config.filename["features_pkl"])
+                if h.exists():
+                    _features = self._hypnodensity.import_model_features(h)
         if _features is None:
             _features = dict()
+            print(f'Calculating features from hypnodensity')
         for idx, gpmodel in enumerate(self.get_narco_gpmodels()):
             if gpmodel not in _features:
-                print(f'Calculating features of hypnodensity[{gpmodel}][{idx}]')
+                logger.info(f'Calculating features from hypnodensity[{gpmodel}]')
                 self.get_hypnodensity_features(gpmodel, idx)
 
     def get_hypnodensity_features(self, *args):
-        features = self._hypnodensity.import_model_features()
         return self._hypnodensity.get_model_features(*args)
+
+    # These are the curated set of hypnodensity features used for modeling narcolepsy
+    def get_narcolepsy_features(self, *args):
+        return self._hypnodensity.get_selected_features(*args)
 
     def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
         scales = self.config.narco_prediction_scales
@@ -489,7 +498,7 @@ class NarcoApp(object):
 
         for idx, (gpmodel, model_path) in enumerate(gp_models.items()):
             print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
-            x = self.get_hypnodensity_features(gpmodel, idx)
+            x = self.get_narcolepsy_features(gpmodel, idx)
             for k in range(num_folds):
                 gp_model_fold_pathname = os.path.join(model_path, str(k))
 

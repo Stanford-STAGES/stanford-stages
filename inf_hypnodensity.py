@@ -148,7 +148,10 @@ class Hypnodensity(object):
             else:
                 _features = {}
                 with h5py.File(p, 'r') as fp:
-                    _features = {k:fp[k][()] for k in fp.keys()}
+                    for key, value in fp.items():
+                        _features[key] = value[()]
+                    #_features = {k:fp[k][()] for k in fp.keys()}
+
             if model is None:
                 self.hypnodensity_features = _features
             elif model in _features:
@@ -307,11 +310,12 @@ class Hypnodensity(object):
 
         bad_signal_events_1_sec = self.get_signal_quality_events()
         bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
-        # Consider also -->  inf_config.sec2epoch(sec=bad_signal_events_1_sec, epoch_len=epoch_len)
+        # Consider also -->  bad_signal_epoch_len = self.config.sec2epoch(bad_signal_events_1_sec, epoch_len)
 
         # remove any sections identified with flatline
         for start_stop in bad_signal_epoch_len:
-            av[start_stop[0]:start_stop[1], :] = np.nan
+            # start_stop[1]+1 b/c the second value is not inclusive
+            av[start_stop[0]:start_stop[1]+1, :] = np.nan
         return av
 
     # returns the number of hypnodensities available - this will correspond to the number of models used during the
@@ -359,18 +363,20 @@ class Hypnodensity(object):
 
         # if we already have them
         if model_name in self.hypnodensity_features:
-            x = self.hypnodensity_features[model_name][idx]
+            x = self.hypnodensity_features[model_name]
         else:
             x = self.import_model_features(model_name)
         if x is None:
             _hypnodensity = self.hypnodensity[idx]
             epoch_len: int = 15
             bad_signal_events_1_sec = self.get_signal_quality_events()
-            bad_signal_15_sec = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
+            bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in
+                                    bad_signal_events_1_sec]
+            # Consider also -->  bad_signal_epoch_len = self.config.sec2epoch(bad_signal_events_1_sec, epoch_len)
 
             # remove any sections identified with flatline or other bad signal data found
-            for start_stop in bad_signal_15_sec:
-                _hypnodensity[start_stop[0]:start_stop[1], :] = np.nan
+            for start_stop in bad_signal_epoch_len:
+                _hypnodensity[start_stop[0]:start_stop[1] + 1, :] = np.nan
 
             lights_off_epoch = self.config.get_lights_off_epoch(epoch_len=epoch_len)
             lights_on_epoch = self.config.get_lights_on_epoch(epoch_len=epoch_len)
@@ -654,7 +660,6 @@ class Hypnodensity(object):
     # of events annotated as bad quality.  Data in these locations will be replaced with nan values.
     def get_signal_quality_events(self):
         # See if there is a file with the same name as the
-        bad_data_file = Path(self.edf_filename)
         data_quality_file = Path(self.config.filename["bad_data"])
         # self.load_signal_quality_events(bP)
         quality_control_events = []
