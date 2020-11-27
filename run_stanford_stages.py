@@ -12,6 +12,10 @@ class MissingRequiredChannelError(Exception):
     pass
 
 
+class ConfigurationStagesError(Exception):
+    pass
+
+
 class RunStagesError(Exception):
     def __init__(self, message, edf_filename=''):
         self.message = message
@@ -135,8 +139,10 @@ def run_using_json_file(json_file: str):
     if data_exclusion_path is not None:
         data_exclusion_path = Path(data_exclusion_path)
         if not data_exclusion_path.is_dir():
-            print_log(f'A {data_exclusion_key} entry was found in the json file, but the path ("{str(data_exclusion_path)}") could not be found', 'warning')
-            data_exclusion_path = None
+            err_msg = f'A {data_exclusion_key} entry was found in the json file, but the path ("{str(data_exclusion_path)}") could not be found.  Correct the pathname or remove it.'
+            print_log(err_msg, 'error')
+            # data_exclusion_path = None
+            raise ConfigurationStagesError(err_msg)
         else:
             print_log(f'Using "{str(data_exclusion_path)}" as path containing data exclusion event file(s).')
 
@@ -148,8 +154,9 @@ def run_using_json_file(json_file: str):
         if lights_filename != "":
             lights_filename = Path(lights_filename)
             if not lights_filename.exists():
-                print_log(f'Could not find the "{lights_filename_key}" key specified in the .json configuration file. '
-                          f'({str(lights_filename)}', 'warning')
+                err_msg = f'Could not find the "{lights_filename_key}" key specified in the .json configuration file.  Correct the filename or remove it: {str(lights_filename)}'
+                print_log(err_msg, 'error')
+                raise ConfigurationStagesError(err_msg)
             else:
                 print_log(f'Loading lights off/on information from "{str(lights_filename)}')
                 lights_edf_dict: dict = load_lights_from_csv_file(lights_filename)
