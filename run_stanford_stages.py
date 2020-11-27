@@ -200,7 +200,11 @@ def run_using_json_file(json_file: str):
                 # cur_json_dict['bad_data_events'] = get_bad_data_events(data_exclusion_filename)
                 data_exclusion_file = data_exclusion_path / (edf_filename.partition('.')[0] + '.evt')
                 if data_exclusion_file.is_file():
+                    log_msg = f'Data exclusion file found: {str(data_exclusion_file)}'
                     cur_json_dict["inf_config"]["bad_data_filename"] = str(data_exclusion_file)
+                else:
+                    log_msg = f'No data exclusion file found for current study ({edf_filename}): {str(data_exclusion_file)}'
+                print_log(log_msg, 'info')
 
             score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
