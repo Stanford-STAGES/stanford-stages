@@ -581,16 +581,16 @@ class Hypnodensity(object):
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
         # by first checking if there is a channel category 'C4' or 'O2'
-        hasC4 = self.channels_used.get('C4') is not None
-        hasO2 = self.channels_used.get('O2') is not None
+        has_c4 = self.channels_used.get('C4') is not None
+        has_o2 = self.channels_used.get('O2') is not None
 
         # Update for issue #6 - The original code did assumed presence of C4 or O2 meant presence of C3 and O1, which is
         # not valid.  Need to explicitly ensure we have both channels when checking noise.
         has_c3 = self.channels_used.get('C3') is not None
         has_o1 = self.channels_used.get('O1') is not None
 
-        has_centrals = has_c3 and hasC4
-        has_occipitals = has_o1 and hasO2
+        has_centrals = has_c3 and has_c4
+        has_occipitals = has_o1 and has_o2
 
         if has_centrals or has_occipitals:
             # print(f'Loading noise file: {self.config.psg_noise_file_pathname}\n')

@@ -16,8 +16,10 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
     def __init__(self, app_config):
         self.config = app_config
-        self.meanV = []
-        self.scaleV = []
+
+        # Dictionaries, keyed by model names
+        self.meanV = {}
+        self.scaleV = {}
         try:
             self.selected = app_config.narco_prediction_selected_features
         except:
@@ -195,26 +197,25 @@ class HypnodensityFeatures(object):  # <-- extract_features
         if len(scaled_features.shape) == 1:
             scaled_features = np.expand_dims(scaled_features, axis=1)
 
-        if len(self.meanV) == 0:
+        if sc_mod not in self.meanV:
             try:
                 with open(os.path.join(self.scale_path, sc_mod + '_scale.p'), 'rb') as sca:
                     scaled = pickle.load(sca)
-                self.meanV = np.expand_dims(scaled['meanV'], axis=1)[:, :, 0]
-                self.scaleV = np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0]
+                self.meanV[sc_mod] = np.squeeze(np.expand_dims(scaled['meanV'], axis=1)[:, :, 0])
+                self.scaleV[sc_mod] = np.squeeze(np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0])
             except FileNotFoundError as e:
                 print("File not found ", e)
                 print("meanV set to 0 and scaleV set to 1")
-                self.meanV = 0
-                self.scaleV = 1
+                self.meanV[sc_mod] = 0
+                self.scaleV[sc_mod] = 1
 
-        scaled_features -= self.meanV
-        scaled_features = np.divide(scaled_features, self.scaleV)
+        scaled_features -= self.meanV[sc_mod]
+        scaled_features = np.divide(scaled_features, self.scaleV[sc_mod])
 
         scaled_features[scaled_features > 10] = 10
         scaled_features[scaled_features < -10] = -10
 
         # For debugging:  How many are less than 10 -->  (scaled_features < -10).sum()
-
         return scaled_features
 
     @staticmethod

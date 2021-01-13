@@ -440,6 +440,7 @@ class NarcoApp(object):
         if _features is None:
             _features = dict()
             print(f'Calculating features from hypnodensity')
+
         for idx, gpmodel in enumerate(self.get_narco_gpmodels()):
             if gpmodel not in _features:
                 logger.info(f'Calculating features from hypnodensity[{gpmodel}]')
