@@ -51,7 +51,9 @@ class Hypnodensity(object):
     def __init__(self, app_config):
         self.config = app_config
         self.hypnodensity = list()
-        self.hypnodensity_features = {}
+
+        # Use get_model_features with scale flag set to true/false depending if you want features scaled or not.  default is False
+        self._hypnodensity_features = {}
         self.flatline = []
         self.features = HypnodensityFeatures(app_config)
         self.edf: pyedflib.EdfFileReader = []
@@ -113,7 +115,7 @@ class Hypnodensity(object):
             fp.write(audit_str)
 
     def export_features(self, p=None):
-        _features = self.hypnodensity_features
+        _features = self._hypnodensity_features
         if not isinstance(p, Path):
             p = Path(p)
         if isinstance(p, Path):
@@ -136,7 +138,7 @@ class Hypnodensity(object):
             print('Not an instance of Path')
             return False
 
-    # Rturns the imported hypnodensity model features on success.  Otherwise returns None
+    # Returns the imported hypnodensity model features on success.  Otherwise returns None
     def import_model_features(self, p=None, model=None):
         _features = None
         if isinstance(p, Path) and p.exists():
@@ -153,12 +155,12 @@ class Hypnodensity(object):
                     #_features = {k:fp[k][()] for k in fp.keys()}
 
             if model is None:
-                self.hypnodensity_features = _features
+                self._hypnodensity_features = _features
             elif model in _features:
-                self.hypnodensity_features[model] = _features[model]
+                self._hypnodensity_features[model] = _features[model]
                 _features = _features[model]
             else:
-                print('import_features requires that either that model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
+                print('import_features requires model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
         return _features
 
     def export_hypnodensity(self, p=None):
@@ -358,14 +360,24 @@ class Hypnodensity(object):
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
-    def get_model_features(self, model_name: str, idx: int):
+    def get_model_features(self, model_name: str, idx: int, scale_features: bool = False):
+        '''
+        Extracts all narcolepsy model features using hypnodensity as input.  The narcolepy features are stored in the
+        hypnodenisty_features property, a dictionary keyed on the model_name.
+        :param model_name:
+        :param idx:
+        :param scale_features: Set to true to scale features using the scale values found in the pickle file setup in the configuration property.
+        Default is False so that scalar values can be determined more readily in new datasets.
+        :return:
+        '''
         # check if we already have them or if they can be loaded...
 
         # if we already have them
-        if model_name in self.hypnodensity_features:
-            x = self.hypnodensity_features[model_name]
+        if model_name in self._hypnodensity_features:
+            x = self._hypnodensity_features[model_name]
         else:
             x = self.import_model_features(model_name)
+
         if x is None:
             _hypnodensity = self.hypnodensity[idx]
             epoch_len: int = 15
@@ -389,8 +401,11 @@ class Hypnodensity(object):
             # configuration is currently setup for 15 second epochs (magic).
             # segments are .25 second and we have 60 of them
             x = self.features.extract(_hypnodensity)
+            self._hypnodensity_features[model_name] = x
+
+        if scale_features:
             x = self.features.scale_features(x, model_name)
-            self.hypnodensity_features[model_name] = x
+
         return x
 
     def get_selected_features(self, model_name: str, idx: int):
@@ -400,7 +415,7 @@ class Hypnodensity(object):
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
         (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
-        x = self.get_model_features(model_name, idx)
+        x = self.get_model_features(model_name, idx, scale_features=True)
         selected_features = self.config.narco_prediction_selected_features
         return x[selected_features].T
 
@@ -660,9 +675,11 @@ class Hypnodensity(object):
     # of events annotated as bad quality.  Data in these locations will be replaced with nan values.
     def get_signal_quality_events(self):
         # See if there is a file with the same name as the
+        quality_control_events = []
+
         data_quality_file = Path(self.config.filename["bad_data"])
         # self.load_signal_quality_events(bP)
-        quality_control_events = []
+
         if data_quality_file.exists():
             a = read_csv(data_quality_file, header=0, names=['start_sec', 'duration_sec', 'channel_label'])
             b = np.array(a[['start_sec', 'duration_sec']])

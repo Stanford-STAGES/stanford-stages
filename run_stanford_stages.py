@@ -47,6 +47,7 @@ def run_using_json_file(json_file: str):
 
     if bypass_edf_check:
         # This will let us bypass the channel label configuration later without raising an exception.
+        print("Bypassing edf check")
         json_dict['channel_indices'] = []
         json_dict['bypass_edf_check'] = bypass_edf_check
 
@@ -266,6 +267,8 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     if not bypass_edf_check and not edf_file.is_file():
         err_msg = 'edf_file is not a file'
         raise RunStagesError(err_msg, edf_file)
+
+
 
     print_log("Processing {filename:s}".format(filename=str(edf_file)))
     # display_set_selection(edf_channel_labels_found)
