@@ -117,11 +117,10 @@ def rolling_window_nodelay(vec, window, step):
     n = len(vec)
     pad = (window-n) % step
 
-    # Only happens if we our window is greater than our vector, in which case we have problems anyway.
+    # Only happens if our window is greater than our vector, in which case we have problems anyway.
     if pad < 0:
         pad = 0
     return view_as_windows(np.pad(vec, (0, pad)), window, step).T
-
 
 '''
 To be removed after 10/10/2020:

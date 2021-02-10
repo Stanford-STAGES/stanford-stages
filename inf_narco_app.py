@@ -494,12 +494,15 @@ class NarcoApp(object):
 
         mean_pred = np.zeros([num_subjects, num_models, num_folds])
         var_pred = np.zeros([num_subjects, num_models, num_folds])
-        kernel = gpf.kernels.SquaredExponential(len(self.selected_features), ard=True)
-        likelihood = gpf.likelihoods.Gaussian()
+
+        # kernel = gpf.kernels.SquaredExponential(len(self.selected_features), ard=True)
 
         for idx, (gpmodel, model_path) in enumerate(gp_models.items()):
             print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
             x = self.get_narcolepsy_features(gpmodel, idx)
+            kernel = gpf.kernels.RationalQuadratic(len(self._selected_features), ard=True)
+            likelihood = gpf.likelihoods.Gaussian()
+
             for k in range(num_folds):
                 gp_model_fold_pathname = os.path.join(model_path, str(k))
 

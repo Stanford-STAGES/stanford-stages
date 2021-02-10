@@ -14,6 +14,7 @@ from inf_tools import softmax
 
 class HypnodensityFeatures(object):  # <-- extract_features
 
+    num_features = 492
     def __init__(self, app_config):
         self.config = app_config
 
@@ -32,7 +33,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
     def extract(self, hyp):
         eps = 1e-10
-        features = np.zeros([24 + 31 * 15])
+        # features = np.zeros([24 + 31 * 15])
+        features = np.zeros([27 + 31 * 15])
         hyp = hyp[~np.isnan(hyp[:, 0]), :]  # or np.invert(np.isnan(hyp[:, 0])
         # k = [i for i, v in enumerate(hyp[:, 0]) if np.isnan(v)]
         # hyp[k[0] - 2:k[-1] + 2, :]
@@ -59,11 +61,22 @@ class HypnodensityFeatures(object):  # <-- extract_features
                     I1 = len(hyp)
                 features[j * 15 + 4] = np.log(I1 * 2 + eps)
 
-                I2 = (i for i, v in enumerate(rate) if v > 0.1).__next__()
+                try:
+                    I2 = (i for i, v in enumerate(rate) if v > 0.1).__next__()
+                except StopIteration:
+                    I2 = len(hyp)
                 features[j * 15 + 5] = np.log(I2 * 2 + eps)
-                I3 = (i for i, v in enumerate(rate) if v > 0.3).__next__()
+
+                try:
+                    I3 = (i for i, v in enumerate(rate) if v > 0.3).__next__()
+                except StopIteration:
+                    I3 = len(hyp)
                 features[j * 15 + 6] = np.log(I3 * 2 + eps)
-                I4 = (i for i, v in enumerate(rate) if v > 0.5).__next__()
+
+                try:
+                    I4 = (i for i, v in enumerate(rate) if v > 0.5).__next__()
+                except StopIteration:
+                    I4 = len(hyp)
                 features[j * 15 + 7] = np.log(I4 * 2 + eps)
 
                 features[j * 15 + 8] = np.sqrt(np.max(dat) * np.mean(dat) + eps)
@@ -98,6 +111,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
             RL = RL[0]
 
         # Nightly SOREMP
+        # rem withing 15 minutes of sleep onset.  REM latency - Sleep latency = num 30 second epochs elapsed from sleep onsent to rem sleep onset; <= thirty 30s epochs is same as <= 15 minutes
+        has_sorem = (RL - SL) <= 30
+        features[-27] = has_sorem
 
         wCount = 0
         rCount = 0
@@ -105,6 +121,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
         soremC = 0
         '''
         # The following was originally used, but found to be inconsistent with the described feature it implements.
+        '''
         for i in range(SL, len(S)):
             if (S[i] == 0) | (S[i] == 1):
                 wCount += 1
@@ -116,7 +133,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
             else:
                 wCount = 0
                 rCount = 0
-        '''
+
+        features[-26] = np.sqrt(rCountR)
+        features[-25] = np.sqrt(soremC)
 
         '''
         Updated
@@ -124,6 +143,10 @@ class HypnodensityFeatures(object):  # <-- extract_features
         that SOREMP.  The manuscript code took care of the first epoch of REM but used too general of a description 
         for a SOREMP (i.e. missed the minimum requirement of one minute of REM). 
         '''
+        wCount = 0
+        rCount = 0
+        rCountR = 0
+        soremC = 0
         for i in range(SL, len(S)):
             if (S[i] == 0) | (S[i] == 1):
                 wCount += 1
@@ -154,10 +177,11 @@ class HypnodensityFeatures(object):  # <-- extract_features
         wCum = 0
         sCount = 0
         for i in range(SL, len(S)):
-            if S[i] != 1:
+            # Used to just be S[i] != 1
+            if S[i] != 1 and S[i] != 0:
                 sCount += 1
 
-            if (sCount > 5) & ((S[i] == 0) | (S[i] == 1)):
+            if (sCount > 5) and ((S[i] == 0) or (S[i] == 1)):
                 wCount = wCount + 1
                 if wCount < 30:
                     wCum = wCum + 1
@@ -177,7 +201,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         ## Find out what features are used:...!
         features[-17:] = self.logmodulus(self.transition_features(data))
-
         return features
 
     def select_features(self, threshold=1):
@@ -192,6 +215,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         return self.selected
 
+    # features is an Nx F array representing F features for N studies.  F should be self.num_features.
     def scale_features(self, features, sc_mod='unknown'):
         scaled_features = features
         if len(scaled_features.shape) == 1:
@@ -201,8 +225,10 @@ class HypnodensityFeatures(object):  # <-- extract_features
             try:
                 with open(os.path.join(self.scale_path, sc_mod + '_scale.p'), 'rb') as sca:
                     scaled = pickle.load(sca)
-                self.meanV[sc_mod] = np.squeeze(np.expand_dims(scaled['meanV'], axis=1)[:, :, 0])
-                self.scaleV[sc_mod] = np.squeeze(np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0])
+                mean_v = scaled['meanV'].reshape((1, self.num_features))
+                scale_v = scaled['scaleV'].reshape((1, -1))  # same thing provided there are self.num_features values for scaleV as well.
+                self.meanV[sc_mod] = mean_v # np.squeeze(np.expand_dims(scaled['meanV'], axis=1)[:, :, 0])
+                self.scaleV[sc_mod] = scale_v # np.squeeze(np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0])
             except FileNotFoundError as e:
                 print("File not found ", e)
                 print("meanV set to 0 and scaleV set to 1")
