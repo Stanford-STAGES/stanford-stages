@@ -276,6 +276,7 @@ def main(edf_filename: str = None,
         # The following portion concerns the narcolepsy classification partion
         requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
         if requires_features:
+
             narco_app.calculate_all_hypnodensity_features(import_ok=True)
             if hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl']:
                 if hypno_config['save']['features_h5']:
