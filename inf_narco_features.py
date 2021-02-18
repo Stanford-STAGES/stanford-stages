@@ -33,13 +33,11 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
     def extract(self, hyp):
         eps = 1e-10
-        # features = np.zeros([24 + 31 * 15])
-        features = np.zeros([27 + 31 * 15])
+        features = np.zeros([24 + 31 * 15])
         hyp = hyp[~np.isnan(hyp[:, 0]), :]  # or np.invert(np.isnan(hyp[:, 0])
         # k = [i for i, v in enumerate(hyp[:, 0]) if np.isnan(v)]
         # hyp[k[0] - 2:k[-1] + 2, :]
         j = -1
-        f = 10
 
         for i in range(5):
             for comb in itertools.combinations([0, 1, 2, 3, 4], i + 1):
@@ -111,31 +109,31 @@ class HypnodensityFeatures(object):  # <-- extract_features
             RL = RL[0]
 
         # Nightly SOREMP
-        # rem withing 15 minutes of sleep onset.  REM latency - Sleep latency = num 30 second epochs elapsed from sleep onsent to rem sleep onset; <= thirty 30s epochs is same as <= 15 minutes
-        has_sorem = (RL - SL) <= 30
-        features[-27] = has_sorem
+        # rem within 30 minutes of sleep onset.  REM latency - Sleep latency = num 30 second epochs elapsed from sleep onsent to rem sleep onset; <= thirty 30s epochs is same as <= 15 minutes
+        # has_sorem = (RL - SL) <= 30
+        # features[-27] = RL
 
         wCount = 0
         rCount = 0
         rCountR = 0
         soremC = 0
         '''
-        # The following was originally used, but found to be inconsistent with the described feature it implements.
+        # The following was originally used, but found to be inconsistent with the described
+         feature it implements.
         '''
-        for i in range(SL, len(S)):
-            if (S[i] == 0) | (S[i] == 1):
-                wCount += 1
-            elif (S[i] == 4) & (wCount > 4):
-                rCount += 1
-                rCountR += 1
-            elif rCount > 1:
-                soremC += 1
-            else:
-                wCount = 0
-                rCount = 0
-
-        features[-26] = np.sqrt(rCountR)
-        features[-25] = np.sqrt(soremC)
+        # for i in range(SL, len(S)):
+        #     if (S[i] == 0) | (S[i] == 1):
+        #         wCount += 1
+        #     elif (S[i] == 4) & (wCount > 4):
+        #         rCount += 1
+        #         rCountR += 1
+        #     elif rCount > 1:
+        #         soremC += 1
+        #     else:
+        #         wCount = 0
+        #         rCount = 0
+        # features[-26] = np.sqrt(rCountR)
+        # features[-25] = np.sqrt(soremC)
 
         '''
         Updated
@@ -190,8 +188,8 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-        features[-24] = self.logmodulus(SL * f)
-        features[-23] = self.logmodulus(RL - SL * f)
+        features[-24] = self.logmodulus(SL)
+        features[-23] = self.logmodulus(RL - SL)
 
         features[-22] = np.sqrt(rCountR)
         features[-21] = np.sqrt(soremC)
