@@ -14,13 +14,19 @@ from inf_tools import softmax
 
 class HypnodensityFeatures(object):  # <-- extract_features
 
-    num_features = 492
+    num_features = 489
     def __init__(self, app_config):
         self.config = app_config
-
         # Dictionaries, keyed by model names
+
         self.meanV = {}
-        self.scaleV = {}
+        # Standard deviation of features.
+        self.stdV = {}
+
+        # range is calculated as difference between 15th and 85th percentile - this was previously the "scaleV".
+        self.rangeV = {}
+        self.medianV = {}
+
         try:
             self.selected = app_config.narco_prediction_selected_features
         except:
@@ -214,7 +220,12 @@ class HypnodensityFeatures(object):  # <-- extract_features
         return self.selected
 
     # features is an Nx F array representing F features for N studies.  F should be self.num_features.
-    def scale_features(self, features, sc_mod='unknown'):
+    # scale_method can be 'range', 'z', 'unscaled', or None.
+    # if scale_method is None, then the configuration.narco_feature_scaling_method is used.
+    def scale_features(self, features, sc_mod='unknown', scale_method=None):
+        if scale_method is None:
+            scale_method = self.config.narco_feature_scaling_method
+
         scaled_features = features
         if len(scaled_features.shape) == 1:
             scaled_features = np.expand_dims(scaled_features, axis=1)
@@ -223,18 +234,36 @@ class HypnodensityFeatures(object):  # <-- extract_features
             try:
                 with open(os.path.join(self.scale_path, sc_mod + '_scale.p'), 'rb') as sca:
                     scaled = pickle.load(sca)
-                mean_v = scaled['meanV'].reshape((1, self.num_features))
-                scale_v = scaled['scaleV'].reshape((1, -1))  # same thing provided there are self.num_features values for scaleV as well.
-                self.meanV[sc_mod] = mean_v # np.squeeze(np.expand_dims(scaled['meanV'], axis=1)[:, :, 0])
-                self.scaleV[sc_mod] = scale_v # np.squeeze(np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0])
+
+                self.meanV[sc_mod] = scaled['meanV'].reshape((1, self.num_features))
+                self.stdV[sc_mod] = scaled['stdV'].reshape((1, self.num_features))
+                self.medianV[sc_mod] = scaled['medianV'].reshape((1, self.num_features))
+                self.rangeV[sc_mod] = scaled['rangeV'].reshape((1, self.num_features))
+                # scale_v = scaled['scaleV'].reshape((1, -1))  # same thing provided there are self.num_features values for scaleV as well.
+
             except FileNotFoundError as e:
                 print("File not found ", e)
-                print("meanV set to 0 and scaleV set to 1")
-                self.meanV[sc_mod] = 0
-                self.scaleV[sc_mod] = 1
+                print("offsetV set to 0 and scaleV set to 1")
+                self.meanV[sc_mod] = self.medianV[sc_mod]  = 0
+                self.stdV[sc_mod] = self.rangeV[sc_mod] = 1
 
-        scaled_features -= self.meanV[sc_mod]
-        scaled_features = np.divide(scaled_features, self.scaleV[sc_mod])
+        if scale_method == 'range':
+            offset_v = self.medianV[sc_mod]
+            scale_v = self.rangeV[sc_mod]
+        elif scale_method == 'z':
+            offset_v = self.meanV[sc_mod]
+            scale_v = self.stdV[sc_mod]
+        else:
+            offset_v = 0
+            scale_v = 1
+
+        if np.any(scale_v == 0):
+            print(
+                f'Warning:  Found a 0 scale value for {sc_mod}.  Divide by 0 to follow.')  # Setting to 1 to avoid divide by 0.')
+            # self.scaleV[sc_mod] = 1
+
+        scaled_features -= offset_v
+        scaled_features = np.divide(scaled_features, scale_v)
 
         scaled_features[scaled_features > 10] = 10
         scaled_features[scaled_features < -10] = -10

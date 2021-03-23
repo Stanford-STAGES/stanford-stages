@@ -187,7 +187,11 @@ class Hypnodensity(object):
                     self.hypnodensity = pickle.load(fp)
             else:
                 with h5py.File(p, 'r') as fp:
-                    self.hypnodensity = fp['hypnodensity'][()]
+                    _hypno = fp['hypnodensity'][()]
+                    if not isinstance(_hypno, list):
+                        _hypno = [_hypno]
+                    self.hypnodensity = _hypno
+                    # print('Shape of hypnodensity is', self.hypnodensity.shape)
             return True
         else:
             return False

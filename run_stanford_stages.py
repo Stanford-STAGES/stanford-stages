@@ -238,7 +238,7 @@ def run_using_json_file(json_file: str):
             print_log('An IndexError may be raised if the application was previously run with a subset of all '
                       '16 models and is now using a greater or different selection of models. Try deleting the '
                       'cached hypnodensity.(pkl/h5) file(s) and run the software again to generate the '
-                      'necessary hypnodensity information for the current configurition.')
+                      'necessary hypnodensity information for the current configuration.')
         except:
             # print("Unexpected error:", sys.exc_info()[0])
             print_log("Unexpected error " + str(sys.exc_info()[0]) + ": " + str(sys.exc_info()[1]), 'error')
@@ -271,8 +271,6 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     if not bypass_edf_check and not edf_file.is_file():
         err_msg = 'edf_file is not a file'
         raise RunStagesError(err_msg, edf_file)
-
-
 
     print_log("Processing {filename:s}".format(filename=str(edf_file)))
     # display_set_selection(edf_channel_labels_found)
