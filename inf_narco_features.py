@@ -223,6 +223,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
     # scale_method can be 'range', 'z', 'unscaled', or None.
     # if scale_method is None, then the configuration.narco_feature_scaling_method is used.
     def scale_features(self, features, sc_mod='unknown', scale_method=None):
+
         if scale_method is None:
             scale_method = self.config.narco_feature_scaling_method
 
@@ -265,8 +266,11 @@ class HypnodensityFeatures(object):  # <-- extract_features
         scaled_features -= offset_v
         scaled_features = np.divide(scaled_features, scale_v)
 
-        scaled_features[scaled_features > 10] = 10
-        scaled_features[scaled_features < -10] = -10
+        if scale_method != 'unscaled':
+            scaled_features[scaled_features > 10] = 10
+            scaled_features[scaled_features < -10] = -10
+
+        print(scale_method, 'method applied for scaling')
 
         # For debugging:  How many are less than 10 -->  (scaled_features < -10).sum()
         return scaled_features
