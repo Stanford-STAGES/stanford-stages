@@ -22,3 +22,4 @@ ml/gp
 test_run_stanford_stages.py
 test_run_stanford_stages.py
 test_app.sh
+inf_config.py.bak

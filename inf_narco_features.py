@@ -46,7 +46,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
         j = -1
 
         for i in range(5):
-            for comb in itertools.combinations([0, 1, 2, 3, 4], i + 1):
+            for comb in itertools.combinations([0, 1, 2, 3, 4], i + 1):  # 31 iterations and 15 features per iteration
                 j += 1
                 dat = np.prod(hyp[:, comb], axis=1) ** (1 / float(len(comb)))
 
@@ -54,11 +54,13 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 features[j * 15 + 1] = -np.log(1 - np.max(dat))
 
                 moving_av = np.convolve(dat, np.ones(10), mode='valid')
-                features[j * 15 + 2] = np.mean(np.abs(np.diff(moving_av)))
+                features[j * 15 + 2] = np.mean(np.abs(np.diff(moving_av)))  # diff of raw data
+                # features[j * 15 + 2] = np.mean(np.abs(np.diff(dat)))  # Alex's next version: moving average may smooth the transitions out too much - removing a hyper-parameter
 
-                features[j * 15 + 3] = self.wavelet_entropy(dat)  # Shannon entropy - check if it is used as a feature
+                features[j * 15 + 3] = self.wavelet_entropy(dat)  # Shannon entropy - check if it is used as a feature - was not selected.
 
                 rate = np.cumsum(dat) / np.sum(dat)
+                # check at which point of the study the percentage of this combination of sleep stages is reached.
                 try:
                     I1 = (i for i, v in enumerate(rate) if v > 0.05).__next__()
                 except StopIteration:
@@ -79,17 +81,19 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
                 try:
                     I4 = (i for i, v in enumerate(rate) if v > 0.5).__next__()
+                    # I4 = next(i for i, v in enumerate(rate) if v > 0.5)  # for when we have to update python
                 except StopIteration:
                     I4 = len(hyp)
                 features[j * 15 + 7] = np.log(I4 * 2 + eps)
 
+                # Same features as above, but now weighted by how much there is for the current stage combination
                 features[j * 15 + 8] = np.sqrt(np.max(dat) * np.mean(dat) + eps)
                 features[j * 15 + 9] = np.mean(np.abs(np.diff(dat)) * np.mean(dat) + eps)
                 features[j * 15 + 10] = np.log(self.wavelet_entropy(dat) * np.mean(dat) + eps)
-                features[j * 15 + 11] = np.sqrt(I1 * 2 * np.mean(dat))
-                features[j * 15 + 12] = np.sqrt(I2 * 2 * np.mean(dat))
-                features[j * 15 + 13] = np.sqrt(I3 * 2 * np.mean(dat))
-                features[j * 15 + 14] = np.sqrt(I4 * 2 * np.mean(dat))
+                features[j * 15 + 11] = np.sqrt(I1 * 2 * np.mean(dat))  # can  + eps
+                features[j * 15 + 12] = np.sqrt(I2 * 2 * np.mean(dat))  # can  + eps
+                features[j * 15 + 13] = np.sqrt(I3 * 2 * np.mean(dat)) # can  + eps
+                features[j * 15 + 14] = np.sqrt(I4 * 2 * np.mean(dat)) # can  + eps
 
         rem = (hyp.shape[0] % 2)
         if rem == 1:
@@ -169,9 +173,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
         nCount = 0
         nFrag = 0
         for i in range(SL, len(S)):
-            if (S[i] == 2) | (S[i] == 3):
+            if (S[i] == 2) | (S[i] == 3):  # NREMish
                 nCount += 1
-            elif ((S[i] == 0) | (S[i] == 1)) & (nCount > 3):
+            elif ((S[i] == 0) | (S[i] == 1)) & (nCount > 3):  # should nCount > 3 be adjusted to change how much fragmentation.
                 nFrag += 1
                 nCount = 0
 
@@ -199,7 +203,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         features[-22] = np.sqrt(rCountR)
         features[-21] = np.sqrt(soremC)
-        features[-20] = np.sqrt(nFrag)
+        features[-20] = np.sqrt(nFrag)   # these counts may need to be adjusted to a percentage of the total when we look at different resolutions.
         features[-19] = np.sqrt(wCum)
         features[-18] = np.sqrt(wBout)
 
@@ -277,6 +281,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
     @staticmethod
     def transition_features(data):
+        # Look at the accumulated stage counts, and when it transitions from one stage to another, we examine the
+        # amount of time spent in the previous stage compared to the transitioned stage and statistics are calculated
+        # on these.
         S = np.zeros(data.shape)
         for i in range(5):
             S[:, i] = np.convolve(data[:, i], np.ones(9), mode='same')
