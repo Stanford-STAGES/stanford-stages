@@ -186,18 +186,17 @@ class Hypnodensity(object):
             if in_a_pickle:
                 with p.open('rb') as fp:
                     _hypno = pickle.load(fp)
-
             else:
                 with h5py.File(p, 'r') as fp:
-                    _hypno = fp['hypnodensity']
-                    print(_hypno)
                     _hypno = fp['hypnodensity'][()]
 
             if not isinstance(_hypno, list):
                 if _hypno.ndim == 3:
                     _hypno = _hypno.tolist()
-                else:
+                elif _hypno.ndim == 2:
                     _hypno = [_hypno]
+                else:
+                    print('Warning: Unsupported number of dimensions found for hypnodensity:', _hypno.ndim)
 
             self.hypnodensity = _hypno
             return True
@@ -426,8 +425,11 @@ class Hypnodensity(object):
         :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
         (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
+        print('Getting selected features')
         x = self.get_model_features(model_name, idx, scale_features=True)
         selected_features = self.config.narco_prediction_selected_features
+        print('Size of x is', x.shape,'Size of selected_features is', selected_features.shape)
+
         return x[selected_features].T
 
     def encoding(self):

@@ -3,6 +3,7 @@ from typing import List, Any
 
 import numpy as np
 from pathlib import Path
+from inf_narco_features import HypnodensityFeatures
 
 
 class AppConfig(object):
@@ -100,6 +101,17 @@ class AppConfig(object):
             except ValueError:
                 value = None
         return value
+
+    def set_narco_feature_selection(self, feature_selections):
+        if feature_selections is None:
+            self.narco_prediction_selected_features = None
+        elif isinstance(feature_selections, list):
+            self.narco_prediction_selected_features = feature_selections
+        elif feature_selections.lower() == 'all':
+            self.narco_prediction_selected_features = list(range(HypnodensityFeatures.num_features))
+        else:
+            print('Unhandled value for feature_selections, which should be a list or "all"')
+            exit(1)
 
     @property
     def lights_off(self):

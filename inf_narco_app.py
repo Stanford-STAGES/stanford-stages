@@ -114,12 +114,21 @@ def main(edf_filename: str = None,
         #     keys_to_check.append('lights_on')
 
         for key in keys_to_check:
+            print(key)
             if key in inf_config_dict and key != 'channels_used':
                 value = inf_config_dict[key]
-                if isinstance(value, list) and not len(value):
+                # Tried to handle this a property and setter, but ran into issues with setattr and _narco_prediction_selected_features
+                if key.lower() == 'narco_prediction_selected_features':
+                    app_config.set_narco_feature_selection(value)
+                elif isinstance(value, list) and not len(value):
                     continue
                 else:
                     setattr(app_config, key, value)
+        # if app_config.narco_prediction_selected_features is None:
+        #     print('No narcolepsy feature set.')
+        # else:
+        #     print('Number of selected features is:', len(app_config.narco_prediction_selected_features))
+
     else:
         inf_config_dict = {}
 
@@ -535,6 +544,7 @@ class NarcoApp(object):
 
         for model_idx, gp_model in enumerate(gp_models):
             print('{} | Predicting using: {}'.format(datetime.now(), gp_model))
+            print('Get narcolepsy features for', gp_model)
             x = self.get_narcolepsy_features(gp_model, model_idx)
             if uses_crossvalidation:
                 cv_acc = 0
