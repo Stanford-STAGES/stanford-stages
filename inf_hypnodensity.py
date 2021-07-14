@@ -180,18 +180,26 @@ class Hypnodensity(object):
 
     def import_hypnodensity(self, p=None):
         if isinstance(p, Path) and p.exists():
-            self.myprint('Loading previously saved hypnodensity')
+            self.myprint(f'Loading previously saved hypnodensity ({p.suffix})')
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            _hypno = []
             if in_a_pickle:
                 with p.open('rb') as fp:
-                    self.hypnodensity = pickle.load(fp)
+                    _hypno = pickle.load(fp)
+
             else:
                 with h5py.File(p, 'r') as fp:
+                    _hypno = fp['hypnodensity']
+                    print(_hypno)
                     _hypno = fp['hypnodensity'][()]
-                    if not isinstance(_hypno, list):
-                        _hypno = [_hypno]
-                    self.hypnodensity = _hypno
-                    # print('Shape of hypnodensity is', self.hypnodensity.shape)
+
+            if not isinstance(_hypno, list):
+                if _hypno.ndim == 3:
+                    _hypno = _hypno.tolist()
+                else:
+                    _hypno = [_hypno]
+
+            self.hypnodensity = _hypno
             return True
         else:
             return False
@@ -235,6 +243,7 @@ class Hypnodensity(object):
             p = Path(self.config.encodeFilename)
 
         h = Path(self.config.filename["hypnodensity_h5"])
+        # h = Path(self.config.filename["hypnodensity_pkl"])
 
         is_auditing = self.config.filename['audit'] is not None
         audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
@@ -271,8 +280,6 @@ class Hypnodensity(object):
             # now and can skip this part.  Otherwise if we are auditing or not able to import a cached hypnodensity,
             # then we want to generate the hypnodensity
             if audit_hypnodensity or not self.config.encodeOnly:
-                h = Path(self.config.filename["hypnodensity_h5"])
-                # h = Path(self.config.filename["_hypnodensity_pkl"])
                 if not self.import_hypnodensity(h):
                     print('Calculating hypnodensity')
                     if audit_hypnodensity:

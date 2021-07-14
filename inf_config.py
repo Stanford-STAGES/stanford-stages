@@ -25,6 +25,9 @@ class AppConfig(object):
         # Hypnodensity classification settings
         self.relevance_threshold = 1
 
+        # Predictions above this value will be considered narcoleptic
+        self.narco_threshold = 0.0
+
         self.fs = np.array(100, dtype=float)
         self.fs_high = np.array(0.2, dtype=float)
         self.fs_low = np.array(49, dtype=float)

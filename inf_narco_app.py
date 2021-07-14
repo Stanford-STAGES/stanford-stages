@@ -428,6 +428,9 @@ class NarcoApp(object):
     def get_num_hypnodensity_models_used(self):
         return self._hypnodensity.get_num_hypnodensities()
 
+    def get_hypnodensity_model_names(self):
+        return [self._hypnodensity._hypnodensity_features.keys()]
+
     def calculate_all_hypnodensity_features(self, import_ok: bool = True):
         _features = None
         if import_ok:
@@ -456,73 +459,120 @@ class NarcoApp(object):
 
     def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
         scales = self.config.narco_prediction_scales
+
+        # Used to do checkpointing for file load and save.  Now using tf.saved_model
+        checkpointing = False
+        uses_crossvalidation = False
+
         gp_models_base_path = self.config.narco_classifier_path
-        gp_models = {gp_model:os.path.join(gp_models_base_path, gp_model) for gp_model in self.get_narco_gpmodels() if
-                     os.path.exists(os.path.join(gp_models_base_path, gp_model))}
-        num_models = len(gp_models)
-        num_models_expected = len(self.get_narco_gpmodels())
+        gp_models_requested = self.get_narco_gpmodels()
+        num_folds = self.config.narco_prediction_num_folds
+        num_models_requested = len(gp_models_requested)
+
+        if num_models_requested == 0:
+            raise StanfordStagesError('No narcolepsy models requested in configuration file.  Prediction is not possible', self.edf_filename)
+
+        num_paths_expected = num_models_requested * num_folds
+
+        #gp_models = {gp_model: os.path.join(gp_models_base_path, gp_model) for gp_model in gp_models_requested if
+        #             os.path.exists(os.path.join(gp_models_base_path, gp_model))}
+
+        # Pre-checking here to see if we have all of the models paths necessary before moving on to processing them.
+        if uses_crossvalidation:
+            gp_models = []
+            for gp_model in gp_models_requested:
+                for k in range(0, num_folds):
+                    if checkpointing:
+                        cv_models = [k for k in range(0, num_folds) if
+                                     os.path.exists(os.path.join(gp_models_base_path, gp_model, str(k)))]
+                    else:
+                        cv_models = [k for k in range(0, num_folds) if
+                                     (gp_models_base_path / (gp_model + '_cv_' + str(k))).is_dir()]
+                # Tally models which have all folds expected.
+                if len(cv_models) == num_folds:
+                    gp_models.append(gp_model)
+                else:
+                    logger.error('Missing %d models folds for %s', num_folds-cv_models, gp_model)
+        else:
+            # Overwrite num folds with 1 if we are not using cross-validation
+            num_folds = 1
+            gp_models = [gp_model for gp_model in gp_models_requested if os.path.exists(os.path.join(gp_models_base_path, gp_model))]
+
+        num_models_found = len(gp_models)
         num_hypnodenisty_models = self.get_num_hypnodensity_models_used()
-        if num_models == 0:
+
+        if num_models_found == 0:
             logger.error(f'No narcolepsy models found for prediction at "{gp_models_base_path}".  Check config file '
                          f'or path.  Stopping!')
             raise StanfordStagesError('No narcolepsy models found for prediction', self.edf_filename)
-        elif num_models != num_models_expected:
-            logger.error('Expecting %d models, but found %d models.  Check config file and path ("%s")',
-                         num_models_expected, num_models, gp_models_base_path)
-            raise StanfordStagesError('Unexpected number of narcolepsy prediction models.', self.edf_filename)
-        elif num_hypnodenisty_models != num_models_expected:
+
+        # Not okay if we find fewer than requested
+        elif num_models_found < num_models_requested:
+
+            if uses_crossvalidation:
+                logger.error(
+                    'Not all model fold paths were found: %d of %d were missing.  Check config file and subpaths '
+                    'of "%s".', num_models_requested-num_models_found, num_paths_expected, gp_models_base_path)
+            else:
+                logger.error('Expecting %d models, but found %d models.  Check config file and path ("%s")',
+                             num_models_requested, num_models_found, gp_models_base_path)
+            raise StanfordStagesError('Missing narcolepsy prediction models.', self.edf_filename)
+
+        # Again, Not okay if we find fewer than requested
+        elif num_hypnodenisty_models < num_models_requested:
             logger.error('Narcolepsy prediction expects hypnodensities from %d models, but %d were found.  Check '
                          'config file and path ("%s")',
-                         num_models_expected, num_hypnodenisty_models, gp_models_base_path)
-            raise StanfordStagesError(f'Narcolepsy prediction model count ({num_models_expected}) mismatch with '
+                         num_models_requested, num_hypnodenisty_models, gp_models_base_path)
+            raise StanfordStagesError(f'Narcolepsy prediction model count ({num_models_requested}) mismatch with '
                                       f'hypnodensity model count found ({num_hypnodenisty_models})', self.edf_filename)
-        num_folds = self.config.narco_prediction_num_folds
-        num_paths_expected = num_models * num_folds
-        paths_missing = []
-        for (gp_model, model_path) in gp_models.items():
-            for k in range(num_folds):
-                gp_model_fold_path = Path(model_path) / str(k)
-                if not Path(gp_model_fold_path).is_dir():
-                    paths_missing.append(str(gp_model_fold_path))
 
-        if len(paths_missing):
-            logger.error('Not all model fold paths were found: %d of %d were missing.  Check config file and subpaths '
-                         'of "%s".', len(paths_missing), num_paths_expected, gp_models_base_path)
-            for model_path in paths_missing:
-                print('Missing: '+model_path)
-            raise StanfordStagesError('Missing narcolepsy prediction models.', self.edf_filename)
+        # Past initial path checking.
         num_subjects = 1
+        narco_pred = np.zeros(shape=(num_subjects, ), dtype=np.float64)
+        narco_pred_var = np.zeros(shape=(num_subjects, ), dtype=np.float64)
 
-        mean_pred = np.zeros([num_subjects, num_models, num_folds])
-        var_pred = np.zeros([num_subjects, num_models, num_folds])
+        narco_threshold = self.config.narco_threshold
 
-        # kernel = gpf.kernels.SquaredExponential(len(self.selected_features), ard=True)
-
-        for idx, (gpmodel, model_path) in enumerate(gp_models.items()):
-            print('{} | Predicting using: {}'.format(datetime.now(), gpmodel))
-            x = self.get_narcolepsy_features(gpmodel, idx)
-            kernel = gpf.kernels.RationalQuadratic(len(self._selected_features), ard=True)
-            likelihood = gpf.likelihoods.Gaussian()
-
-            for k in range(num_folds):
-                gp_model_fold_pathname = os.path.join(model_path, str(k))
-
-                if not os.path.isdir(gp_model_fold_pathname):
-                    raise StanfordStagesError(f'MISSING Model: {gp_model_fold_pathname}', self.edf_filename)
-                else:
-                    z = np.ones(shape=(self.num_induction_points, len(self.selected_features)), dtype=np.float64)
-                    m = gpf.models.SVGP(kernel=kernel, likelihood=likelihood, inducing_variable=z)
-                    ckpt = tf.train.Checkpoint(model=m)
-                    # ckpt.restore(load_path)
-                    manager = tf.train.CheckpointManager(ckpt, directory=gp_model_fold_pathname, max_to_keep=5)
-                    if manager.latest_checkpoint is None:
-                        raise StanfordStagesError('ModelCheckPointError: latest checkpoint could not be loaded',
-                                                  self.edf_filename)
+        for model_idx, gp_model in enumerate(gp_models):
+            print('{} | Predicting using: {}'.format(datetime.now(), gp_model))
+            x = self.get_narcolepsy_features(gp_model, model_idx)
+            if uses_crossvalidation:
+                cv_acc = 0
+                for k in range(num_folds):
+                    if checkpointing:
+                        model_path = gp_models_base_path / gp_model / str(k)
+                        narco_tester.load_model_checkpoint(load_path=model_path)
                     else:
-                        status = ckpt.restore(manager.latest_checkpoint).expect_partial()
-                    mean_pred[:, idx, k, np.newaxis], var_pred[:, idx, k, np.newaxis] = m.predict_y(x)
+                        model_filename = gp_models_base_path / (gp_model + '_cv_' + str(k))
+                        narco_tester.load_model(filename=model_filename)
+                    y_pred_thresh, y_prob = narco_tester.predict_y(x, threshold=narco_threshold)
+                    narco_pred += (y_prob * config.narco_prediction_scales[model_idx]) / np.sum(
+                        config.narco_prediction_scales) / narco_tester.num_folds
+            else:
+                if checkpointing:
+                    model_path = gp_models_base_path / gp_model / "single"
+                    narco_tester.load_model_checkpoint(load_path=model_path)
+                else:
+                    model_filename = gp_models_base_path / gp_model
+                    narco_tester.load_model(filename=model_filename)
+                    # potentially raise an error if the model or path has been deleted somehow since starting.
+                    # raise StanfordStagesError(f'MISSING Model: {gp_model_fold_pathname}', self.edf_filename)
 
-        self.narcolepsy_probability = np.sum(np.multiply(np.mean(mean_pred, axis=2), scales), axis=1) / np.sum(scales)
+                y_pred_thresh, y_prob, y_var = narco_tester.predict_y(x, threshold=narco_threshold)
+                acc = np.mean(np.squeeze(y_pred_thresh) == np.squeeze(y))
+
+                # y_pred is based on the most votes:
+                # y_pred += y_pred_thresh / num_models_requested
+
+                # y_pred is based on the probability of the score:
+                # y_pred += y_prob / num_models_requested
+
+                # y_pred is based on the probability of the score scaled by the relative accuracy of the model:
+                y_pred += (y_prob * config.narco_prediction_scales[model_idx]) / np.sum(
+                    config.narco_prediction_scales)
+                y_pred_var += (y_var * config.narco_prediction_scales[model_idx]) / np.sum(
+                    config.narco_prediction_scales)
+        self.narcolepsy_probability = y_pred
         print(self.narcolepsy_probability[0])
         return self.narcolepsy_probability
 
