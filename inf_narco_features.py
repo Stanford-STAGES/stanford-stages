@@ -29,8 +29,6 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         try:
             self.selected = app_config.narco_prediction_selected_features
-
-
         except:
             self.selected = []  # [1, 11, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140, 147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296, 299, 390, 405, 450, 467, 468, 470, 474, 476, 477]
 
@@ -233,18 +231,20 @@ class HypnodensityFeatures(object):  # <-- extract_features
         if scale_method is None:
             scale_method = self.config.narco_feature_scaling_method
 
+
         scaled_features = features
+        print('Scaled features shape', features.shape)
         if len(scaled_features.shape) == 1:
-            scaled_features = np.expand_dims(scaled_features, axis=1)
+            # scaled_features = np.expand_dims(scaled_features, axis=1)
+            scaled_features = scaled_features.reshape((1, len(scaled_features)))
 
         if sc_mod not in self.meanV:
             try:
                 scale_pickle_file = os.path.join(self.scale_path, sc_mod + '_scale.p')
                 # print('loading scale data from', scale_pickle_file)
-                print('Num features = ', self.num_features)
+                print('selected features = ', self.num_features)
                 with open(scale_pickle_file, 'rb') as sca:
                     scaled = pickle.load(sca)
-
                 self.meanV[sc_mod] = scaled['meanV'].reshape((1, self.num_features))
                 self.stdV[sc_mod] = scaled['stdV'].reshape((1, self.num_features))
                 self.medianV[sc_mod] = scaled['medianV'].reshape((1, self.num_features))
@@ -272,6 +272,7 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 f'Warning:  Found a 0 scale value for {sc_mod}.  Divide by 0 to follow.')  # Setting to 1 to avoid divide by 0.')
             # self.scaleV[sc_mod] = 1
 
+        print('Size of offset_v', offset_v.shape)
         scaled_features -= offset_v
         scaled_features = np.divide(scaled_features, scale_v)
 

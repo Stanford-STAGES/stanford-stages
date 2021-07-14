@@ -75,7 +75,8 @@ class AppConfig(object):
         self._lights_off: int = None
         self._lights_on: int = None
 
-        self.narco_prediction_num_folds = 5  # for the gp narco classifier
+        # Set to 0 to turn off cross-validation.  Otherwise a model must have been trained previously for each fold desired.  This is for the gp classifier.
+        self.narco_prediction_num_folds = 0
 
         self.narco_prediction_scales = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                                         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]

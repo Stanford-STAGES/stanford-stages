@@ -370,67 +370,6 @@ class Hypnodensity(object):
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
-    def get_model_features(self, model_name: str, idx: int, scale_features: bool = False):
-        '''
-        Extracts all narcolepsy model features using hypnodensity as input.  The narcolepy features are stored in the
-        hypnodenisty_features property, a dictionary keyed on the model_name.
-        :param model_name:
-        :param idx:
-        :param scale_features: Set to true to scale features using the scale values found in the pickle file setup in the configuration property.
-        Default is False so that scalar values can be determined more readily in new datasets.
-        :return:
-        '''
-        # check if we already have them or if they can be loaded...
-
-        # if we already have them
-        if model_name in self._hypnodensity_features:
-            x = self._hypnodensity_features[model_name]
-        else:
-            x = self.import_model_features(model_name)
-
-        if x is None:
-            _hypnodensity = self.hypnodensity[idx]
-            epoch_len: int = 15
-            bad_signal_events_1_sec = self.get_signal_quality_events()
-            bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in
-                                    bad_signal_events_1_sec]
-            # Consider also -->  bad_signal_epoch_len = self.config.sec2epoch(bad_signal_events_1_sec, epoch_len)
-
-            # remove any sections identified with flatline or other bad signal data found
-            for start_stop in bad_signal_epoch_len:
-                _hypnodensity[start_stop[0]:start_stop[1] + 1, :] = np.nan
-
-            lights_off_epoch = self.config.get_lights_off_epoch(epoch_len=epoch_len)
-            lights_on_epoch = self.config.get_lights_on_epoch(epoch_len=epoch_len)
-
-            # Only consider data between lights off and lights on.
-            _hypnodensity = _hypnodensity[lights_off_epoch:lights_on_epoch, :]
-
-            # self.hypnodensity is a list of numpy arrays.
-            # _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
-            # configuration is currently setup for 15 second epochs (magic).
-            # segments are .25 second and we have 60 of them
-            x = self.features.extract(_hypnodensity)
-            self._hypnodensity_features[model_name] = x
-
-        if scale_features:
-            x = self.features.scale_features(x, model_name)
-
-        return x
-
-    def get_selected_features(self, model_name: str, idx: int):
-        """
-        :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
-        :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
-        :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
-        (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
-        """
-        print('Getting selected features')
-        x = self.get_model_features(model_name, idx, scale_features=True)
-        selected_features = self.config.narco_prediction_selected_features
-        print('Size of x is', x.shape,'Size of selected_features is', selected_features.shape)
-
-        return x[selected_features].T
 
     def encoding(self):
 
