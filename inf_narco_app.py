@@ -248,6 +248,8 @@ def main(edf_filename: str = None,
         # narcoApp.eval_all()
         narco_app.eval_hypnodensity()
 
+        narco_app.get_hypnodensity()
+
         if narco_app.config.audit.get('diagnosis', False):
             narco_app.audit(narco_app.eval_narcolepsy, 'Diagnosing...')
 
@@ -301,7 +303,7 @@ def main(edf_filename: str = None,
             render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
                                 save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
         if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
-            prediction = narco_app.narcolepsy_probability[0]
+            prediction = float(narco_app.narcolepsy_probability[0])
             diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
             logger.debug('Score:  %0.4f.  Diagnosis: %s', prediction, diagnosis)
         else:
@@ -374,7 +376,7 @@ class NarcoApp(object):
         self.edf_filename = app_config.edf_filename  # full filename of an .EDF to use for header information.  A template .edf
 
         self._hypnodensity = Hypnodensity(app_config)
-        self.narco_model = NarcoModel(app_config)
+        self.narco_model = NarcoModel(app_config, self._hypnodensity)
         self.models_used = app_config.models_used
         self.selected_features = app_config.narco_prediction_selected_features
         self.narcolepsy_probability = []
@@ -455,22 +457,20 @@ class NarcoApp(object):
         for idx, gp_model in enumerate(self.get_narco_models()):
             if gp_model not in _features:
                 logger.info(f'Calculating features from hypnodensity[{gp_model}]')
-                self.get_hypnodensity_features(gp_model, idx)
+                self.get_all_hypnodensity_features(gp_model, idx)
 
     # These are all of the features derived from the hypnodensity.
     # args include model_name: str, model_idx: int  (the model index)
-    def get_hypnodensity_features(self, *args):
-        return self._hypnodensity.get_model_features(*args)
+    def get_all_hypnodensity_features(self, *args):
+        return self.narco_model.get_features(*args)
 
     # These are the curated set of hypnodensity features used for modeling narcolepsy
     # args include model_name: str, model_idx: int  (the model index)
     def get_narcolepsy_features(self, *args):
         return self.narco_model.get_selected_features(*args)
 
-    def get_narco_prediction(self, narco_features):  # ,current_subset, num_subjects, num_models, num_folds):
-        if narco_features is None:
-            narco_features = self.get_narcolepsy_features()
-        self.narcolepsy_probability = self.narco_model.get_prediction(narco_features)
+    def get_narco_prediction(self):  # ,current_subset, num_subjects, num_models, num_folds):
+        self.narcolepsy_probability = self.narco_model.get_prediction()
         print(self.narcolepsy_probability[0])
         return self.narcolepsy_probability
 

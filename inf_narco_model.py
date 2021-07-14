@@ -147,12 +147,12 @@ class NarcoModel(object):
         (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
         """
         print('Getting selected features')
-        x = self.get_model_features(model_name, idx, scale_features=True)
+        x = self.get_features(model_name, idx, scale_features=True)
         selected_features = self.config.narco_prediction_selected_features
         print('Size of x is', x.shape,'Size of selected_features is', len(selected_features))
         return x[:, selected_features]
 
-    def get_model_features(self, model_name: str, idx: int, scale_features: bool = False):
+    def get_features(self, model_name: str, idx: int, scale_features: bool = False):
         '''
         Extracts all narcolepsy model features using hypnodensity as input.  The narcolepy features are stored in the
         hypnodenisty_features property, a dictionary keyed on the model_name.
@@ -215,6 +215,7 @@ class NarcoModel(object):
         acc = np.mean(np.squeeze(y_pred) == np.squeeze(y_test))
         return acc
 
+    # Use get_model_features with scale flag set to true/false depending if you want features scaled or not.  default is False
     def get_prediction(self):
         scales = self.config.narco_prediction_scales
         narco_pred = np.nan
@@ -258,7 +259,9 @@ class NarcoModel(object):
             gp_models = [gp_model for gp_model in gp_models_requested if os.path.exists(os.path.join(gp_models_base_path, gp_model))]
 
         num_models_found = len(gp_models)
-        num_hypnodenisty_models = self.get_num_hypnodensity_models_used()
+
+        # Proxy for how many feature sets we will have for our ensemble.
+        num_hypnodenisty_models = self._hypnodensity_obj.get_num_hypnodensities()
 
         if num_models_found == 0:
             logger.error(f'No narcolepsy models found for prediction at "{gp_models_base_path}".  Check config file '
@@ -295,8 +298,9 @@ class NarcoModel(object):
         gp_models_base_path = Path(gp_models_base_path)
         for model_idx, gp_model in enumerate(gp_models):
             print('{} | Predicting using: {}'.format(datetime.now(), gp_model))
-            print('Get narcolepsy features for', gp_model)
-            x = self.get_narcolepsy_features(gp_model, model_idx)
+            print('Getting narcolepsy features for', gp_model)
+            x = self.get_selected_features(gp_model, model_idx)
+
             if uses_crossvalidation:
                 cv_acc = 0
                 for k in range(num_folds):
@@ -312,15 +316,14 @@ class NarcoModel(object):
             else:
                 if uses_checkpointing:
                     model_path = gp_models_base_path / gp_model / "single"
-                    self.load_narco_model_checkpoint(load_path=model_path)
+                    self.load_model_checkpoint(load_path=model_path)
                 else:
                     model_filename = gp_models_base_path / gp_model
-                    self.load_narco_model(filename=model_filename)
+                    self.load_model(filename=model_filename)
                     # potentially raise an error if the model or path has been deleted somehow since starting.
                     # raise StanfordStagesError(f'MISSING Model: {gp_model_fold_pathname}', self.edf_filename)
 
-                y_pred_thresh, y_prob, y_var = self._predict_y(x, threshold=narco_threshold)
-                acc = np.mean(np.squeeze(y_pred_thresh) == np.squeeze(y))
+                y_pred_thresh, y_prob, y_var = self.predict_y(x, threshold=narco_threshold)
 
                 # y_pred is based on the most votes:
                 # y_pred += y_pred_thresh / num_models_requested

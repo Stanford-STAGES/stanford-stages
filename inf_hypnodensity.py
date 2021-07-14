@@ -52,7 +52,6 @@ class Hypnodensity(object):
         self.config = app_config
         self.hypnodensity = list()
 
-        # Use get_model_features with scale flag set to true/false depending if you want features scaled or not.  default is False
         self._hypnodensity_features = {}
         self.flatline = []
         self.features = HypnodensityFeatures(app_config)
@@ -192,7 +191,8 @@ class Hypnodensity(object):
 
             if not isinstance(_hypno, list):
                 if _hypno.ndim == 3:
-                    _hypno = _hypno.tolist()
+                    pass
+                    # _hypno = _hypno.tolist()
                 elif _hypno.ndim == 2:
                     _hypno = [_hypno]
                 else:
