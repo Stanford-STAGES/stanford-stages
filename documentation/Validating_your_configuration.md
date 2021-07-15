@@ -1,6 +1,6 @@
-# Validating stanford-stages app's configuration
+# Validating stanford-stages app's _master branch_ configuration
 
-The sleep study CHP_040.edf is may be used to verify your setup.  It can be downloaded from the following mirrors:
+The sleep study CHP_040.edf is may be used to verify that you have the software setup correctly.  It can be downloaded from the following mirrors:
 
 1. [Mirror 1](https://stanfordmedicine.box.com/shared/static/0lvvyaprzinzz7dult87t7hr96s2dnqq.edf) [380 MB]
 2. [Mirror 2](https://www.informaton.org/narco/ml/validation/CHP040.edf) [380 MB]
@@ -34,9 +34,9 @@ and saved in the same directory as the input CHP040.edf file.
 
    Expected results for the ac_rh_ls_lstm_01 hypnogram and hypnodensity results can be found here:
 
-    * [Hypnogram (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnogram.txt) [4 KB]
+    * [Hypnogram (single model)](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/validation_files/master_branch/single_model/CHP040.hypnogram.txt) [4 KB]
 
-    * [Hypnodensity image (single model)](https://www.informaton.org/narco/ml/validation/ac_rh_ls_lstm_01/CHP040.hypnodensity.png) [158 KB]
+    * [Hypnodensity image (single model)](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/validation_files/master_branch/single_model/CHP040.hypnodensity.png) [158 KB]
 
    Expected diagnosis output is:
 
@@ -78,9 +78,9 @@ and saved in the same directory as the input CHP040.edf file.
 
    Expected results for may be found here:
 
-    * [Hypnogram (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnogram.txt) [4 KB]
+    * [Hypnogram (full)](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/validation_files/master_branch/all_models/CHP040.hypnogram.txt) [4 KB]
 
-    * [Hypnodensity image (full)](https://www.informaton.org/narco/ml/validation/all/CHP040.hypnodensity.png) [155 KB]
+    * [Hypnodensity image (full)](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/validation_files/master_branch/all_models/CHP040.hypnodensity.png) [155 KB]
 
    Expected diagnosis output is:
 

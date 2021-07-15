@@ -38,18 +38,18 @@
     },
     "output_path": "C:/Data/ml/results",
     "save": {
-        "diagnosis": "false",
-        "encoding": "true",
-        "hypnodensity": "false",
-        "hypnogram": "false",
-        "hypnogram_30_sec": "true",
-        "plot": "false"
+        "diagnosis": false,
+        "encoding": true,
+        "hypnodensity": true,
+        "hypnogram": true,
+        "hypnogram_30_sec": true,
+        "plot": true
     },
     "show": {
         "diagnosis": false,
         "hypnodensity": false,
         "hypnogram": false,
-        "hypnogram_30_sec": "true",
-        "plot": "true"
+        "hypnogram_30_sec": true,
+        "plot": true
     }
 }

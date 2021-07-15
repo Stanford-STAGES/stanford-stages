@@ -324,7 +324,6 @@ def time2elapsedseconds(edf_file, time_value):
     else:
         return time_value
 
-
 def change_file_extension(fullname, new_extension):
     basename, _ = os.path.splitext(fullname)
     return basename + new_extension

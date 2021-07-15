@@ -16,20 +16,17 @@ Git provides support for multiple _branches_ of development.  Notable branches i
 
    The ___manuscript branch___ includes the code presented with the 2018 manuscript.  It uses earlier versions of GPflow and TensorFlow, to retain compatibility with the narcolepsy classification models (gp.zip) presented with the manuscript.  
   
-    See the [__manuscript branch__ README page](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for configuration instructions using this branch and links to the narcolepsy models.  
+    See the [__manuscript branch__ README page](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/Manuscript_Branch.md) for configuration instructions using this branch and links to the narcolepsy models.  
 
 1. __Beta__ 
 
    The ___beta branch___ serves as development branch for making and testing changes to the ___master branch___ and is not always stable.      
 
-
    **NOTE**: Only Python 3.6 and later is supported. Previous versions of Python have been shown to yield erroneous results. 
 
 # Getting started
 
-The stanford-stages application is most readily configured and used by editing the repository's __stanford_stages.json__ file and passing 
- it to the __run_stanford_stages.py__ script.  Instructions on how to run the application are given first followed by instructions on how to configure the application.  
- However, in practice, you will need to configure the application before it can be run.      
+The stanford-stages application is most readily configured and used by editing the repository's __stanford_stages.json__ file and passing it to the __run_stanford_stages.py__ script.  Instructions on how to run the application are given first followed by instructions on how to configure the application.  In practice, you will need to configure the application before it can be run.      
 
 _Note_: These instruction are for the master branch.
 
@@ -59,38 +56,21 @@ _Note_: Linux and Unix users will need to modify (chmod) the _run_stanford_stage
 
 ## Configuring the application
 
-These instructions are for configuring the application using a .json file (e.g. `stanford_stages.json`) with `run_stanford_stages.py`.  
+Use the following link for configuring the __run_stanford_stages.py__ wrapper:
 
-Developers interested in bypassing the __run_stanford_stages.py wrapper script can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments.  
-Documentation for inf_narco_app.py's json arguments can be found [here] 
+[Instructions for configuring the application using JSON](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md)
 
-## Models
+Developers interested in bypassing the __run_stanford_stages.py__ wrapper can call __inf_narco_app.py__'s `main` method directly, using a subset of these json arguments. Documentation for these json arguments is included in the same documentation [here](https://github.com/Stanford-STAGES/stanford-stages/blob/master/documentation/JSON_Configuration.md).
 
-The sleep staging classification models are hosted externally at the following location:
+# Application Output
 
-* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
-* <strike>gp.zip</strike>*
- 
-Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG are necessary d by the software to run.
-The .zip file may be deleted once its contents have been extracted.  
-A Javascript object notation (json) file is used to configure the software.   
-   
+This section describes the application's output.  These outputs may be displayed in the console window and/or saved to disk as described in the JSON configuration section readme.
 
-When complete the 'ml/' directory tree should like:<pre>
-ac/
-<strike>gp/</strike>
-noiseM.mat
-scaling</pre>
-
-*_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
- 
-## Output
-
-### Narcolepsy diagnosis
+## Narcolepsy diagnosis
 
 The algorithm produces values between −1 and 1, with 1 indicating a high probability of narcolepsy. The cut-off threshold between narcolepsy type 1 and “other“ is set at −0.03.  See [Neural network analysis of sleep stages enables efficient diagnosis of narcolepsy](https://www.nature.com/articles/s41467-018-07229-3) for details.  
 
-### Hypnogram
+## Hypnogram
 
 The hypnogram provides a numeric indicator of wake or sleep stage for every epoch scored.  
 By default, epochs are scored in 15 s intervals as follows:
@@ -100,14 +80,14 @@ By default, epochs are scored in 15 s intervals as follows:
 * Stage 2 sleep: `2`
 * Stage 3/4 sleep: `3`
 * Rapid eye movement (REM) sleep: `5`
+* Unscored: `7`
 
-### Hypnodensity
+Note: Unscored data includes the time before lights off and after lights on, i.e. provided these values have been set manually (see JSON configuration).  Periods of flatlined data, in excess of 5 minutes can produce divide by 0 conditions in the software and are left unscored as well.
 
-#### Text
-The hypnodensity text output is the same length (number of epochs/rows) as the hypnogram.  Instead of a
-sleep score, however, five probabilities are given representing the likelihood of the
-sleep stage corresponding to its column for the current epoch.  Probabilities are ordered
-starting with wake, and moving to deeper stages of sleep, with REM sleep last.
+## Hypnodensity
+
+### As a text file
+The hypnodensity text output is the same length (number of epochs/rows) as the hypnogram.  Instead of a sleep score, however, five probabilities are given representing the likelihood of the sleep stage corresponding to its column for the current epoch.  Probabilities are ordered starting with wake, and moving to deeper stages of sleep, with REM sleep last.
 
 For example:
 
@@ -121,14 +101,10 @@ Represents
 * Stage 3/4 sleep: 3% likelihood
 * REM sleep: 70% likelihood
 
-#### Image
+### As a plot
 
-The x-axis of the hypnodensity plot represents the epochs from the beginning to the
-end of the study, which are measured in 15 s intervals by default.  The y-axis ranges from
-0 to 1 and represents the hypnodensity - the probability of each sleep stage and wake.  
-Different colors are used to represent wake and each sleep stage.  For each epoch, the probability of wake is drawn first as a vertical line to the proportion of the y-axis range it represents.
-Stage 1 is then stacked on top of this, followed by Stages 2, 3/4, and REM sleep such that the
-entire spectrum is covered.  Color matching is as follows:
+The x-axis of the hypnodensity plot represents the epochs from the beginning to the end of the study, which are measured in 15 s intervals by default.  The y-axis ranges from
+0 to 1 and represents the hypnodensity - the probability of each sleep stage and wake.  Different colors are used to represent wake and each sleep stage.  For each epoch, the probability of wake is drawn first as a vertical line to the proportion of the y-axis range it represents. Stage 1 is then stacked on top of this, followed by Stages 2, 3/4, and REM sleep such that the entire spectrum is covered.  Color matching is as follows:
 
 * Wake: white
 * Stage 1 sleep: pink
@@ -136,7 +112,26 @@ entire spectrum is covered.  Color matching is as follows:
 * Stage 3/4 sleep: blue
 * REM sleep: green
 
-## Licensing and Attribution
+# Models
+
+The sleep staging classification models are hosted externally at the following location:
+
+* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
+* <strike>gp.zip</strike>*
+ 
+Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG (.edf file) are necessary for the software to run.  The .zip file may be deleted once its contents have been extracted.  
+
+See the JSON configuration instructions for how to specify the location model locations for use with the software.
+   
+When complete the 'ml/' directory tree should like:<pre>
+ac/
+<strike>gp/</strike>
+noiseM.mat
+scaling</pre>
+
+*_Note_ See _manuscript branch_ [readme](https://github.com/Stanford-STAGES/stanford-stages/blob/master/Manuscript_Branch_README.md) for links to the gp.zip file originally posted with the manuscript.  
+
+# Licensing and Attribution
 
 This software is licensed under the Creative Commons CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/).  
 
