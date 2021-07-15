@@ -174,7 +174,7 @@ class NarcoModel(object):
             _hypnodensity = self._hypnodensity_obj.hypnodensity[idx]
             epoch_len: int = 15
             bad_signal_events_1_sec = self._hypnodensity_obj.get_signal_quality_events()
-            bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in
+            bad_signal_epoch_len = [self._hypnodensity_obj.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in
                                     bad_signal_events_1_sec]
             # Consider also -->  bad_signal_epoch_len = self.config.sec2epoch(bad_signal_events_1_sec, epoch_len)
 

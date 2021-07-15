@@ -693,6 +693,7 @@ class Hypnodensity(object):
         #e_new_base_sec = e_1_sec_base // new_base_sec
         #return e_new_base_sec
         return (e*source_base_sec) // new_base_sec
+
     # Use 5 minute sliding window.
     @staticmethod
     def extract_hjorth(x, fs, dim=5 * 60, slide=5 * 60):
