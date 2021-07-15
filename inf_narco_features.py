@@ -14,10 +14,19 @@ from inf_tools import softmax
 
 class HypnodensityFeatures(object):  # <-- extract_features
 
+    num_features = 489
     def __init__(self, app_config):
         self.config = app_config
-        self.meanV = []
-        self.scaleV = []
+        # Dictionaries, keyed by model names
+
+        self.meanV = {}
+        # Standard deviation of features.
+        self.stdV = {}
+
+        # range is calculated as difference between 15th and 85th percentile - this was previously the "scaleV".
+        self.rangeV = {}
+        self.medianV = {}
+
         try:
             self.selected = app_config.narco_prediction_selected_features
         except:
@@ -35,10 +44,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
         # k = [i for i, v in enumerate(hyp[:, 0]) if np.isnan(v)]
         # hyp[k[0] - 2:k[-1] + 2, :]
         j = -1
-        f = 10
 
         for i in range(5):
-            for comb in itertools.combinations([0, 1, 2, 3, 4], i + 1):
+            for comb in itertools.combinations([0, 1, 2, 3, 4], i + 1):  # 31 iterations and 15 features per iteration
                 j += 1
                 dat = np.prod(hyp[:, comb], axis=1) ** (1 / float(len(comb)))
 
@@ -46,31 +54,46 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 features[j * 15 + 1] = -np.log(1 - np.max(dat))
 
                 moving_av = np.convolve(dat, np.ones(10), mode='valid')
-                features[j * 15 + 2] = np.mean(np.abs(np.diff(moving_av)))
+                features[j * 15 + 2] = np.mean(np.abs(np.diff(moving_av)))  # diff of raw data
+                # features[j * 15 + 2] = np.mean(np.abs(np.diff(dat)))  # Alex's next version: moving average may smooth the transitions out too much - removing a hyper-parameter
 
-                features[j * 15 + 3] = self.wavelet_entropy(dat)  # Shannon entropy - check if it is used as a feature
+                features[j * 15 + 3] = self.wavelet_entropy(dat)  # Shannon entropy - check if it is used as a feature - was not selected.
 
                 rate = np.cumsum(dat) / np.sum(dat)
+                # check at which point of the study the percentage of this combination of sleep stages is reached.
                 try:
                     I1 = (i for i, v in enumerate(rate) if v > 0.05).__next__()
                 except StopIteration:
                     I1 = len(hyp)
                 features[j * 15 + 4] = np.log(I1 * 2 + eps)
 
-                I2 = (i for i, v in enumerate(rate) if v > 0.1).__next__()
+                try:
+                    I2 = (i for i, v in enumerate(rate) if v > 0.1).__next__()
+                except StopIteration:
+                    I2 = len(hyp)
                 features[j * 15 + 5] = np.log(I2 * 2 + eps)
-                I3 = (i for i, v in enumerate(rate) if v > 0.3).__next__()
+
+                try:
+                    I3 = (i for i, v in enumerate(rate) if v > 0.3).__next__()
+                except StopIteration:
+                    I3 = len(hyp)
                 features[j * 15 + 6] = np.log(I3 * 2 + eps)
-                I4 = (i for i, v in enumerate(rate) if v > 0.5).__next__()
+
+                try:
+                    I4 = (i for i, v in enumerate(rate) if v > 0.5).__next__()
+                    # I4 = next(i for i, v in enumerate(rate) if v > 0.5)  # for when we have to update python
+                except StopIteration:
+                    I4 = len(hyp)
                 features[j * 15 + 7] = np.log(I4 * 2 + eps)
 
+                # Same features as above, but now weighted by how much there is for the current stage combination
                 features[j * 15 + 8] = np.sqrt(np.max(dat) * np.mean(dat) + eps)
                 features[j * 15 + 9] = np.mean(np.abs(np.diff(dat)) * np.mean(dat) + eps)
                 features[j * 15 + 10] = np.log(self.wavelet_entropy(dat) * np.mean(dat) + eps)
-                features[j * 15 + 11] = np.sqrt(I1 * 2 * np.mean(dat))
-                features[j * 15 + 12] = np.sqrt(I2 * 2 * np.mean(dat))
-                features[j * 15 + 13] = np.sqrt(I3 * 2 * np.mean(dat))
-                features[j * 15 + 14] = np.sqrt(I4 * 2 * np.mean(dat))
+                features[j * 15 + 11] = np.sqrt(I1 * 2 * np.mean(dat))  # can  + eps
+                features[j * 15 + 12] = np.sqrt(I2 * 2 * np.mean(dat))  # can  + eps
+                features[j * 15 + 13] = np.sqrt(I3 * 2 * np.mean(dat)) # can  + eps
+                features[j * 15 + 14] = np.sqrt(I4 * 2 * np.mean(dat)) # can  + eps
 
         rem = (hyp.shape[0] % 2)
         if rem == 1:
@@ -96,25 +119,31 @@ class HypnodensityFeatures(object):  # <-- extract_features
             RL = RL[0]
 
         # Nightly SOREMP
+        # rem within 30 minutes of sleep onset.  REM latency - Sleep latency = num 30 second epochs elapsed from sleep onsent to rem sleep onset; <= thirty 30s epochs is same as <= 15 minutes
+        # has_sorem = (RL - SL) <= 30
+        # features[-27] = RL
 
         wCount = 0
         rCount = 0
         rCountR = 0
         soremC = 0
         '''
-        # The following was originally used, but found to be inconsistent with the described feature it implements.
-        for i in range(SL, len(S)):
-            if (S[i] == 0) | (S[i] == 1):
-                wCount += 1
-            elif (S[i] == 4) & (wCount > 4):
-                rCount += 1
-                rCountR += 1
-            elif rCount > 1:
-                soremC += 1
-            else:
-                wCount = 0
-                rCount = 0
+        # The following was originally used, but found to be inconsistent with the described
+         feature it implements.
         '''
+        # for i in range(SL, len(S)):
+        #     if (S[i] == 0) | (S[i] == 1):
+        #         wCount += 1
+        #     elif (S[i] == 4) & (wCount > 4):
+        #         rCount += 1
+        #         rCountR += 1
+        #     elif rCount > 1:
+        #         soremC += 1
+        #     else:
+        #         wCount = 0
+        #         rCount = 0
+        # features[-26] = np.sqrt(rCountR)
+        # features[-25] = np.sqrt(soremC)
 
         '''
         Updated
@@ -122,6 +151,10 @@ class HypnodensityFeatures(object):  # <-- extract_features
         that SOREMP.  The manuscript code took care of the first epoch of REM but used too general of a description 
         for a SOREMP (i.e. missed the minimum requirement of one minute of REM). 
         '''
+        wCount = 0
+        rCount = 0
+        rCountR = 0
+        soremC = 0
         for i in range(SL, len(S)):
             if (S[i] == 0) | (S[i] == 1):
                 wCount += 1
@@ -140,9 +173,9 @@ class HypnodensityFeatures(object):  # <-- extract_features
         nCount = 0
         nFrag = 0
         for i in range(SL, len(S)):
-            if (S[i] == 2) | (S[i] == 3):
+            if (S[i] == 2) | (S[i] == 3):  # NREMish
                 nCount += 1
-            elif ((S[i] == 0) | (S[i] == 1)) & (nCount > 3):
+            elif ((S[i] == 0) | (S[i] == 1)) & (nCount > 3):  # should nCount > 3 be adjusted to change how much fragmentation.
                 nFrag += 1
                 nCount = 0
 
@@ -152,10 +185,11 @@ class HypnodensityFeatures(object):  # <-- extract_features
         wCum = 0
         sCount = 0
         for i in range(SL, len(S)):
-            if S[i] != 1:
+            # Used to just be S[i] != 1
+            if S[i] != 1 and S[i] != 0:
                 sCount += 1
 
-            if (sCount > 5) & ((S[i] == 0) | (S[i] == 1)):
+            if (sCount > 5) and ((S[i] == 0) or (S[i] == 1)):
                 wCount = wCount + 1
                 if wCount < 30:
                     wCum = wCum + 1
@@ -164,18 +198,17 @@ class HypnodensityFeatures(object):  # <-- extract_features
                 wCount = 0
                 wBout = wBout + 1
 
-        features[-24] = self.logmodulus(SL * f)
-        features[-23] = self.logmodulus(RL - SL * f)
+        features[-24] = self.logmodulus(SL)
+        features[-23] = self.logmodulus(RL - SL)
 
         features[-22] = np.sqrt(rCountR)
         features[-21] = np.sqrt(soremC)
-        features[-20] = np.sqrt(nFrag)
+        features[-20] = np.sqrt(nFrag)   # these counts may need to be adjusted to a percentage of the total when we look at different resolutions.
         features[-19] = np.sqrt(wCum)
         features[-18] = np.sqrt(wBout)
 
         ## Find out what features are used:...!
         features[-17:] = self.logmodulus(self.transition_features(data))
-
         return features
 
     def select_features(self, threshold=1):
@@ -190,35 +223,73 @@ class HypnodensityFeatures(object):  # <-- extract_features
 
         return self.selected
 
-    def scale_features(self, features, sc_mod='unknown'):
-        scaled_features = features
-        if len(scaled_features.shape) == 1:
-            scaled_features = np.expand_dims(scaled_features, axis=1)
+    # features is an Nx F array representing F features for N studies.  F should be self.num_features.
+    # scale_method can be 'range', 'z', 'unscaled', or None.
+    # if scale_method is None, then the configuration.narco_feature_scaling_method is used.
+    def scale_features(self, features, sc_mod='unknown', scale_method=None):
 
-        if len(self.meanV) == 0:
+        if scale_method is None:
+            scale_method = self.config.narco_feature_scaling_method
+
+
+        scaled_features = features
+        print('Scaled features shape', features.shape)
+        if len(scaled_features.shape) == 1:
+            # scaled_features = np.expand_dims(scaled_features, axis=1)
+            scaled_features = scaled_features.reshape((1, len(scaled_features)))
+
+        if sc_mod not in self.meanV:
             try:
-                with open(os.path.join(self.scale_path, sc_mod + '_scale.p'), 'rb') as sca:
+                scale_pickle_file = os.path.join(self.scale_path, sc_mod + '_scale.p')
+                # print('loading scale data from', scale_pickle_file)
+                print('selected features = ', self.num_features)
+                with open(scale_pickle_file, 'rb') as sca:
                     scaled = pickle.load(sca)
-                self.meanV = np.expand_dims(scaled['meanV'], axis=1)[:, :, 0]
-                self.scaleV = np.expand_dims(scaled['scaleV'], axis=1)[:, :, 0]
+                self.meanV[sc_mod] = scaled['meanV'].reshape((1, self.num_features))
+                self.stdV[sc_mod] = scaled['stdV'].reshape((1, self.num_features))
+                self.medianV[sc_mod] = scaled['medianV'].reshape((1, self.num_features))
+                self.rangeV[sc_mod] = scaled['rangeV'].reshape((1, self.num_features))
+                # scale_v = scaled['scaleV'].reshape((1, -1))  # same thing provided there are self.num_features values for scaleV as well.
+
             except FileNotFoundError as e:
                 print("File not found ", e)
-                print("meanV set to 0 and scaleV set to 1")
-                self.meanV = 0
-                self.scaleV = 1
+                print("offsetV set to 0 and scaleV set to 1")
+                self.meanV[sc_mod] = self.medianV[sc_mod] = 0
+                self.stdV[sc_mod] = self.rangeV[sc_mod] = 1
 
-        scaled_features -= self.meanV
-        scaled_features = np.divide(scaled_features, self.scaleV)
+        if scale_method == 'range':
+            offset_v = self.medianV[sc_mod]
+            scale_v = self.rangeV[sc_mod]
+        elif scale_method == 'z':
+            offset_v = self.meanV[sc_mod]
+            scale_v = self.stdV[sc_mod]
+        else:
+            offset_v = 0
+            scale_v = 1
 
-        scaled_features[scaled_features > 10] = 10
-        scaled_features[scaled_features < -10] = -10
+        if np.any(scale_v == 0):
+            print(
+                f'Warning:  Found a 0 scale value for {sc_mod}.  Divide by 0 to follow.')  # Setting to 1 to avoid divide by 0.')
+            # self.scaleV[sc_mod] = 1
+
+        print('Size of offset_v', offset_v.shape)
+        scaled_features -= offset_v
+        scaled_features = np.divide(scaled_features, scale_v)
+
+        if scale_method != 'unscaled':
+            scaled_features[scaled_features > 10] = 10
+            scaled_features[scaled_features < -10] = -10
+
+        print(scale_method, 'method applied for scaling')
 
         # For debugging:  How many are less than 10 -->  (scaled_features < -10).sum()
-
         return scaled_features
 
     @staticmethod
     def transition_features(data):
+        # Look at the accumulated stage counts, and when it transitions from one stage to another, we examine the
+        # amount of time spent in the previous stage compared to the transitioned stage and statistics are calculated
+        # on these.
         S = np.zeros(data.shape)
         for i in range(5):
             S[:, i] = np.convolve(data[:, i], np.ones(9), mode='same')

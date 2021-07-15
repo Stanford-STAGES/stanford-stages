@@ -3,7 +3,7 @@ from typing import List, Any
 
 import numpy as np
 from pathlib import Path
-
+from inf_narco_features import HypnodensityFeatures
 
 
 class AppConfig(object):
@@ -25,6 +25,9 @@ class AppConfig(object):
 
         # Hypnodensity classification settings
         self.relevance_threshold = 1
+
+        # Predictions above this value will be considered narcoleptic
+        self.narco_threshold = 0.0
 
         self.fs = np.array(100, dtype=float)
         self.fs_high = np.array(0.2, dtype=float)
@@ -72,14 +75,21 @@ class AppConfig(object):
         self._lights_off: int = None
         self._lights_on: int = None
 
-        self.narco_prediction_num_folds = 5  # for the gp narco classifier
-        self.narco_prediction_scales = [0.90403101, 0.89939177, 0.90552177, 0.88393560, 0.89625522, 0.88085868,
-                                        0.89474061, 0.87774597, 0.87615981, 0.88391175, 0.89158020, 0.88084675,
-                                        0.89320215, 0.87923673, 0.87615981, 0.88850328]
+        # Set to 0 to turn off cross-validation.  Otherwise a model must have been trained previously for each fold desired.  This is for the gp classifier.
+        self.narco_prediction_num_folds = 0
 
-        self.narco_prediction_selected_features = [1, 11, 14, 16, 22, 25, 41, 43, 49, 64, 65, 86, 87, 103, 119, 140,
-                                                   147, 149, 166, 196, 201, 202, 220, 244, 245, 261, 276, 289, 296,
-                                                   390, 405, 450, 467, 468, 470, 474, 476, 477]
+        self.narco_prediction_scales = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+        self.narco_prediction_selected_features = None
+        # Uncomment to use the following 153 features
+        # self.narco_prediction_selected_features = [0, 2, 4, 8, 9, 10, 13, 15, 16, 17, 19, 21, 24, 25, 28, 31, 32, 34, 35, 39, 46, 47, 50, 52, 58, 61, 63, 64, 77, 93, 102, 110, 119, 121, 122, 123, 126, 127, 131, 133, 137, 150, 154, 156, 157, 160, 162, 166, 167, 173, 176, 181, 182, 192, 195, 197, 199, 205, 206, 208, 210, 215, 220, 223, 227, 236, 237, 245, 246, 257, 258, 260, 262, 267, 273, 274, 275, 281, 284, 285, 288, 293, 294, 295, 302, 311, 316, 317, 319, 321, 331, 333, 334, 337, 341, 348, 350, 356, 357, 362, 363, 364, 368, 369, 371, 373, 376, 378, 380, 381, 387, 390, 392, 393, 394, 398, 400, 403, 404, 406, 407, 412, 414, 415, 419, 422, 428, 429, 436, 437, 441, 442, 443, 445, 447, 454, 455, 456, 457, 459, 460, 461, 462, 463, 469, 470, 471, 474, 475, 477, 481, 482, 485]
+
+        # Feature scaling options include:
+        # ['range']:           (x-median(X))/(percentile(X, 85)-percentile(X, 15)) where x is the feature and X is the population sample of the features
+        # 'z':                 (x-mean(X))/std(X)  - This is gives 0 mean and unit variance.
+        # 'unscaled' or None:  (x - 0) / 1 - This is unscaled; no change to the features.
+        self.narco_feature_scaling_method = 'range'
 
         # Set to False to minimize printed output.
         self.verbose: bool = True
@@ -92,6 +102,17 @@ class AppConfig(object):
             except ValueError:
                 value = None
         return value
+
+    def set_narco_feature_selection(self, feature_selections):
+        if feature_selections is None:
+            self.narco_prediction_selected_features = None
+        elif isinstance(feature_selections, list):
+            self.narco_prediction_selected_features = feature_selections
+        elif feature_selections.lower() == 'all':
+            self.narco_prediction_selected_features = list(range(HypnodensityFeatures.num_features))
+        else:
+            print('Unhandled value for feature_selections, which should be a list or "all"')
+            exit(1)
 
     @property
     def lights_off(self):

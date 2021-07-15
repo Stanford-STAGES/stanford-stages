@@ -8,6 +8,7 @@ Created on Wed Jul 12 23:58:10 2017
 # from: inf_eval --> to: inf_generate_hypnodensity
 """
 import json
+import traceback
 import pickle
 import time  # for auditing code speed.
 from pathlib import Path
@@ -50,6 +51,8 @@ class Hypnodensity(object):
     def __init__(self, app_config):
         self.config = app_config
         self.hypnodensity = list()
+
+        self._hypnodensity_features = {}
         self.flatline = []
         self.features = HypnodensityFeatures(app_config)
         self.edf: pyedflib.EdfFileReader = []
@@ -110,6 +113,55 @@ class Hypnodensity(object):
             audit_str = f', {audit_label}: {elapsed_time:0.3f} s'
             fp.write(audit_str)
 
+    def export_features(self, p=None):
+        _features = self._hypnodensity_features
+        if not isinstance(p, Path):
+            p = Path(p)
+        if isinstance(p, Path):
+            try:
+                in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+                if in_a_pickle:
+                    with p.open('wb') as fp:
+                        pickle.dump(_features, fp)
+                else:
+                    with h5py.File(p, 'w') as fp:
+                        for model, values in _features.items():
+                            fp[model] = values
+                print(f'Hypnodensity features saved to "{str(p)}"')
+                return True
+            except:
+                print(f'EXCEPTION caught while saving hypnodensity features to {str(p)}. FAIL.\n')
+                traceback.print_exc()
+                return False
+        else:
+            print('Not an instance of Path')
+            return False
+
+    # Returns the imported hypnodensity model features on success.  Otherwise returns None
+    def import_model_features(self, p=None, model=None):
+        _features = None
+        if isinstance(p, Path) and p.exists():
+            self.myprint('Loading previously saved hypnodensity features')
+            in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            if in_a_pickle:
+                with p.open('rb') as fp:
+                    _features = pickle.load(fp)
+            else:
+                _features = {}
+                with h5py.File(p, 'r') as fp:
+                    for key, value in fp.items():
+                        _features[key] = value[()]
+                    #_features = {k:fp[k][()] for k in fp.keys()}
+
+            if model is None:
+                self._hypnodensity_features = _features
+            elif model in _features:
+                self._hypnodensity_features[model] = _features[model]
+                _features = _features[model]
+            else:
+                print('import_features requires model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
+        return _features
+
     def export_hypnodensity(self, p=None):
         if isinstance(p, Path):
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
@@ -127,14 +179,26 @@ class Hypnodensity(object):
 
     def import_hypnodensity(self, p=None):
         if isinstance(p, Path) and p.exists():
-            self.myprint('Loading previously saved hypnodensity')
+            self.myprint(f'Loading previously saved hypnodensity ({p.suffix})')
             in_a_pickle = p.suffix != '.h5'  # p.suffix == '.pkl'
+            _hypno = []
             if in_a_pickle:
                 with p.open('rb') as fp:
-                    self.hypnodensity = pickle.load(fp)
+                    _hypno = pickle.load(fp)
             else:
                 with h5py.File(p, 'r') as fp:
-                    self.hypnodensity = fp['hypnodensity'][()]
+                    _hypno = fp['hypnodensity'][()]
+
+            if not isinstance(_hypno, list):
+                if _hypno.ndim == 3:
+                    pass
+                    # _hypno = _hypno.tolist()
+                elif _hypno.ndim == 2:
+                    _hypno = [_hypno]
+                else:
+                    print('Warning: Unsupported number of dimensions found for hypnodensity:', _hypno.ndim)
+
+            self.hypnodensity = _hypno
             return True
         else:
             return False
@@ -177,7 +241,8 @@ class Hypnodensity(object):
         if self.config.saveEncoding:
             p = Path(self.config.encodeFilename)
 
-        h = Path(self.config.filename["h5_hypnodensity"])
+        h = Path(self.config.filename["hypnodensity_h5"])
+        # h = Path(self.config.filename["hypnodensity_pkl"])
 
         is_auditing = self.config.filename['audit'] is not None
         audit_hypnodensity = is_auditing and self.config.audit['hypnodensity']
@@ -213,17 +278,16 @@ class Hypnodensity(object):
             # If we are just encoding the file for future use, then we don't want to spend time running the models right
             # now and can skip this part.  Otherwise if we are auditing or not able to import a cached hypnodensity,
             # then we want to generate the hypnodensity
-            h = Path(self.config.filename["h5_hypnodensity"])
-            # h = Path(self.config.filename["pkl_hypnodensity"])
-            if audit_hypnodensity or not self.config.encodeOnly or not self.import_hypnodensity(h):
-                print('Calculating hypnodensity')
-                if audit_hypnodensity:
-                    self.audit(self.score_data, 'Generate hypnodensity')
-                else:
-                    self.score_data()
-                # cache our file
-                if self.config.saveHypnodensity:
-                    self.export_hypnodensity(h)
+            if audit_hypnodensity or not self.config.encodeOnly:
+                if not self.import_hypnodensity(h):
+                    print('Calculating hypnodensity')
+                    if audit_hypnodensity:
+                        self.audit(self.score_data, 'Generate hypnodensity')
+                    else:
+                        self.score_data()
+                    # cache our file
+                    if self.config.save_hypnodensity_h5:
+                        self.export_hypnodensity(h)
 
     def encode_edf(self, export_path=None):
         # and if you can't then go through all the steps to encode it
@@ -252,10 +316,25 @@ class Hypnodensity(object):
 
         lights_on_mask = np.ones(av.shape[0]) == 1
         epoch_len: int = 15
-        lights_on_mask[self.config.get_lights_off_epoch(epoch_len):self.config.get_lights_on_epoch(epoch_len)] = False
+        # Zero out portion with lights off
+        lights_on_mask[self.config.get_lights_off_epoch(epoch_len=epoch_len):self.config.get_lights_on_epoch(epoch_len=epoch_len)] = False
         av[lights_on_mask, :] = np.nan
 
+        bad_signal_events_1_sec = self.get_signal_quality_events()
+        bad_signal_epoch_len = [self.epoch_rebase(x, 1, epoch_len).astype(np.uint32) for x in bad_signal_events_1_sec]
+        # Consider also -->  bad_signal_epoch_len = self.config.sec2epoch(bad_signal_events_1_sec, epoch_len)
+
+        # remove any sections identified with flatline
+        for start_stop in bad_signal_epoch_len:
+            # start_stop[1]+1 b/c the second value is not inclusive
+            av[start_stop[0]:start_stop[1]+1, :] = np.nan
         return av
+
+    # returns the number of hypnodensities available - this will correspond to the number of models used during the
+    # inferencing step, which will be between 1 and 16.
+    def get_num_hypnodensities(self):
+        # return self._hypnodensity.hypnodensity.shape[0]
+        return len(self.hypnodensity)
 
     # 0 is wake, 1 is stage-1, 2 is stage-2, 3 is stage 3/4, 5 is REM
     def get_hypnogram(self, epoch_len: int = 15):
@@ -291,24 +370,6 @@ class Hypnodensity(object):
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
 
-    def get_features(self, model_name: str, idx: int):
-        """
-        :param model_name: String ID of the model.  This identifies the scale factor to apply to the features.
-        :param idx: The numeric index of the model being used.  This identifies the hypnodensity to gather features from
-        :return: The selected, extracted, and scaled features for hypnodensity derived using the specified model index
-        (idx) between [lights_off, lights_on).  Note: [inclusive, exclusive).  The end.
-        """
-        lights_off_epoch = self.config.get_lights_off_epoch()
-        lights_on_epoch = self.config.get_lights_on_epoch()
-        # self.hypnodensity is a list of numpy arrays.
-        _hypnodensity = self.hypnodensity[idx][lights_off_epoch:lights_on_epoch, :]
-        # configuration is currently setup for 15 second epochs (magic).
-        # segments are .25 second and we have 60 of them
-
-        selected_features = self.config.narco_prediction_selected_features
-        x = self.features.extract(_hypnodensity)
-        x = self.features.scale_features(x, model_name)
-        return x[selected_features].T
 
     def encoding(self):
 
@@ -483,21 +544,20 @@ class Hypnodensity(object):
                 self.loaded_channels[ch] = signal.resample_poly(self.loaded_channels[ch], self.fs, fs, axis=0,
                                                                 window=('kaiser', 5.0))
 
-
     def psg_noise_level(self):
         # Only need to check noise levels when we have two central or occipital channels
         # which we should then compare for quality and take the best one.  We can test this
         # by first checking if there is a channel category 'C4' or 'O2'
-        hasC4 = self.channels_used.get('C4') is not None
-        hasO2 = self.channels_used.get('O2') is not None
+        has_c4 = self.channels_used.get('C4') is not None
+        has_o2 = self.channels_used.get('O2') is not None
 
         # Update for issue #6 - The original code did assumed presence of C4 or O2 meant presence of C3 and O1, which is
         # not valid.  Need to explicitly ensure we have both channels when checking noise.
         has_c3 = self.channels_used.get('C3') is not None
         has_o1 = self.channels_used.get('O1') is not None
 
-        has_centrals = has_c3 and hasC4
-        has_occipitals = has_o1 and hasO2
+        has_centrals = has_c3 and has_c4
+        has_occipitals = has_o1 and has_o2
 
         if has_centrals or has_occipitals:
             # print(f'Loading noise file: {self.config.psg_noise_file_pathname}\n')
@@ -548,8 +608,6 @@ class Hypnodensity(object):
 
     def score_data(self):
         self.hypnodensity = list()
-        # bad_signal = self.get_signal_quality_events()
-        # bad_signal_15_sec = [self.epoch_rebase(x, 1, 15).astype(np.uint32) for x in bad_signal]
 
         # bad_blocks = self.get_inf_nan_encoded_blocks()
         # self.encoded_data[:, bad_blocks] = 0
@@ -562,21 +620,18 @@ class Hypnodensity(object):
         # flatline_15_sec = []
         for l in self.config.models_used:
             hyp = self.run_data(self.encoded_data, l, self.config.hypnodensity_model_root_path)
-            # hyp = Hypnodensity.run_data(self.encodedD, l, self.config.hypnodensity_model_root_path)
             hyp = softmax(hyp)
-            # remove any sections identified with flatline
-            #for bad_signal_start_stop in bad_signal_15_sec:
-            #    hyp[bad_signal_start_stop[0]:bad_signal_start_stop[1], :] = np.nan
             self.hypnodensity.append(hyp)
 
-    # Returns a np.2darray of the start and step times (elapsed times in seconds from start of the psg)
+    # Returns a np.2darray of the start and stop times (elapsed times in seconds from start of the psg)
     # of events annotated as bad quality.  Data in these locations will be replaced with nan values.
     def get_signal_quality_events(self):
         # See if there is a file with the same name as the
-        bad_data_file = Path(self.edf_filename)
-        data_quality_file = Path(self.config.filename["data_quality"])
-        # self.load_signal_quality_events(bP)
         quality_control_events = []
+
+        data_quality_file = Path(self.config.filename["bad_data"])
+        # self.load_signal_quality_events(bP)
+
         if data_quality_file.exists():
             a = read_csv(data_quality_file, header=0, names=['start_sec', 'duration_sec', 'channel_label'])
             b = np.array(a[['start_sec', 'duration_sec']])
@@ -638,6 +693,7 @@ class Hypnodensity(object):
         #e_new_base_sec = e_1_sec_base // new_base_sec
         #return e_new_base_sec
         return (e*source_base_sec) // new_base_sec
+
     # Use 5 minute sliding window.
     @staticmethod
     def extract_hjorth(x, fs, dim=5 * 60, slide=5 * 60):

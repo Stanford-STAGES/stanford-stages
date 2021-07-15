@@ -22,17 +22,46 @@ def get_edf_filenames(path2check):
     return [str(i) for i in edf_files]  # list compression
 
 
+def get_h5_filenames(path2check):
+    edf_files = get_h5_files(path2check)
+    return [str(i) for i in edf_files]  # list compression
+
+
 def get_edf_files(path2check):
+    return get_files_with_ext(path2check,'edf')
+
+    # p = Path(path2check)
+    # # verify that we have an accurate directory
+    # # if so then list all .edf/.EDF files
+    # if p.is_dir():
+    #     print_log('Checking ' + str(path2check) + "for edf files.", 'debug')
+    #     edf_files = p.glob('*.[Ee][Dd][Ff]')  # make search case-insensitive
+    # else:
+    #     print_log(str(path2check) + " is not a valid directory.", 'debug')
+    #     edf_files = []
+    # return list(edf_files)
+
+
+def get_h5_files(path2check):
+    return get_files_with_ext(path2check, 'h5')
+
+
+def get_filenames_with_ext(path2check, **kwargs):
+    return [str(i) for i in get_files_with_ext(path2check, **kwargs)]
+
+
+def get_files_with_ext(path2check, ext: str = '*'):
     p = Path(path2check)
     # verify that we have an accurate directory
     # if so then list all .edf/.EDF files
     if p.is_dir():
-        print_log('Checking ' + str(path2check) + "for edf files.", 'debug')
-        edf_files = p.glob('*.[Ee][Dd][Ff]')  # make search case-insensitive
+        print_log('Checking ' + str(path2check) + " for '"+ext+"' files.", 'debug')
+        case_insensitive_ext = "".join(['['+a.upper()+a.lower()+']' if a.isalpha() else a for a in ext])
+        ext_files = p.glob('*.'+case_insensitive_ext)  # make search case-insensitive
     else:
         print_log(str(path2check) + " is not a valid directory.", 'debug')
-        edf_files = []
-    return list(edf_files)
+        ext_files = []
+    return list(ext_files)
 
 
 def get_signal_headers(edf_filename, verbose=False):
@@ -49,6 +78,25 @@ def get_signal_headers(edf_filename, verbose=False):
 def get_channel_labels(edf_filename):
     channel_headers = get_signal_headers(edf_filename)
     return [fields["label"] for fields in channel_headers]
+
+
+def get_study_starttime(edf_filename, verbose=False):
+    if verbose:
+        print("Reading start time from ", edf_filename)
+    try:
+        edf_r = EdfReader(str(edf_filename), annotations_mode=False, check_file_size=False)
+        return edf_r.getStartdatetime()
+    except:
+        print("Failed reading headers from ", str(edf_filename))
+        return None
+
+
+def get_study_starttime_as_seconds(edf_filename, **kwargs):
+    start_datetime = get_study_starttime(edf_filename, **kwargs)
+    if start_datetime is not None:
+        return start_datetime.hour*3600+start_datetime.minute*60+start_datetime.second
+    else:
+        return None
 
 
 def softmax(x):
@@ -69,7 +117,7 @@ def rolling_window_nodelay(vec, window, step):
     n = len(vec)
     pad = (window-n) % step
 
-    # Only happens if we our window is greater than our vector, in which case we have problems anyway.
+    # Only happens if our window is greater than our vector, in which case we have problems anyway.
     if pad < 0:
         pad = 0
     return view_as_windows(np.pad(vec, (0, pad)), window, step).T
