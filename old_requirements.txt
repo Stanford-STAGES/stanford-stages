@@ -1,0 +1,11 @@
+These were from original development on beta branch.
+matplotlib
+pandas
+h5py
+scipy
+tensorflow>=2.0
+numpy==1.17.0
+scikit-image>=0.15.0
+pyedflib>=0.1.12
+pywavelets>=1.0.0
+gpflow>=2.0
