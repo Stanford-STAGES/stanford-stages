@@ -4,7 +4,8 @@ from pathlib import Path
 from pyedflib import EdfReader
 
 logging_level_STAGES = 60
-logging.addLevelName(logging_level_STAGES, 'STAGES')
+logging_level_PROGRESS = 65
+logging.addLevelName(logging_level_PROGRESS, 'PROGRESS')
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -15,6 +16,8 @@ def print_log(msg: str, log_level: str = 'info'):
         getattr(logger, log_level)(msg)
     elif log_level.lower() == 'stages':
         logger.log(logging_level_STAGES, msg)
+    elif log_level.lower() == 'progress':
+        logger.log(logging_level_PROGRESS, msg)
 
 
 def get_edf_filenames(path2check):

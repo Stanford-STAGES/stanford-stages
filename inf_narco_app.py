@@ -245,7 +245,7 @@ def main(edf_filename: str = None,
         logger.debug('Skipping.  Diagnosis output file file already exists: %s', str(hyp['filename']['diagnosis']))
     else:
         narco_app = NarcoApp(app_config)
-        # narcoApp.eval_all()
+        # narco_app.eval_all()
         narco_app.eval_hypnodensity()
 
         narco_app.get_hypnodensity()

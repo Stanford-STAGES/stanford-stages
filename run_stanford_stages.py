@@ -1,11 +1,12 @@
 import sys, time, json, traceback
-from collections import namedtuple
+
+# from collections import namedtuple
 from pathlib import Path
 import copy
 import csv
 import inf_tools
 from inf_tools import print_log
-import inf_narco_app as narcoApp
+import inf_narco_app as narco_app
 
 
 class MissingRequiredChannelError(Exception):
@@ -24,7 +25,7 @@ class RunStagesError(Exception):
         self.edf_filename = edf_filename
 
 
-def run_using_json_file(json_file: str):
+def run_using_json_file(json_file: str, progress_cb=None):
     output_subpath = 'stanford_stages'
     if json_file is None:
         print_log('Requires a json_file for input.  Nothing done', 'error')
@@ -42,8 +43,8 @@ def run_using_json_file(json_file: str):
 
     # bypass looking for edf data in the case when channel indices are not provided, the channel labels are provided and
     # they are explicitly set to 'None'.
-    bypass_edf_check = json_dict.get('bypass_edf_check', False) or \
-                       'channel_indices' not in json_dict and 'channel_labels' in json_dict and all([label.lower() == 'none' for label in json_dict['channel_labels'].values()])
+    bypass_edf_check = json_dict.get('bypass_edf_check', False) or 'channel_indices' not in json_dict and 'channel_labels' in json_dict and all(
+        [label.lower() == 'none' for label in json_dict['channel_labels'].values()])
 
     if bypass_edf_check:
         # This will let us bypass the channel label configuration later without raising an exception.
@@ -64,6 +65,7 @@ def run_using_json_file(json_file: str):
     '''
     # Need to pop any keys here that are not found as part of inf_config class.
     psg_path = None
+    edf_files = []
     if 'edf_pathname' in json_dict:
         psg_path = json_dict.pop('edf_pathname')
         if not bypass_edf_check:
@@ -77,7 +79,8 @@ def run_using_json_file(json_file: str):
             if len(h5_files):
                 # determine basename of these files... note that we currently save .features and .hypnodensity files with .h5 suffx
                 # as well as encoding files
-                prefix_names = [b.stem.partition('.hypnodensity')[0].partition('.features')[0] for b in h5_files] # file1.hypnodensity.h5 and file1.h5 --> file1 and file1
+                prefix_names = [b.stem.partition('.hypnodensity')[0].partition('.features')[0] for b in
+                                h5_files]  # file1.hypnodensity.h5 and file1.h5 --> file1 and file1
                 # remove any duplicates that are found
                 prefix_names = list(set(prefix_names))
                 # then create mock-up .edf files with the remaining basenames, provided that they are not in the list of .edf files already.
@@ -180,12 +183,14 @@ def run_using_json_file(json_file: str):
     default_lights_on = json_dict.get("inf_config", {}).get("lights_on", None)
 
     edf_files = sorted(edf_files)
-
+    last_update_time = time.time()
     for index, edfFile in enumerate(edf_files):
         try:  # ref: https://docs.python.org/3/tutorial/errors.html
             edf_filename = Path(edfFile).name
-            msg = f'{index + 1:03d} / {num_edfs:03d}: {edf_filename}\t'
+
+            msg = f'{index + 1:03d} / {num_edfs:03d}: {edf_filename}'
             print_log(msg, 'STAGES')
+
             # create a copy to avoid issues of making alteration below, such as channel indices ...
             cur_json_dict = copy.deepcopy(json_dict)
             # Give some flexibility to whether the .edf file name is given or just the basename (sans extension)
@@ -195,7 +200,8 @@ def run_using_json_file(json_file: str):
             elif edf_filename.partition('.')[0] in lights_edf_dict:
                 file_key = edf_filename.partition('.')[0]
             if file_key is not None:
-                cur_json_dict["inf_config"]["lights_off"] = lights_edf_dict[file_key].get("lights_off", default_lights_off)
+                cur_json_dict["inf_config"]["lights_off"] = lights_edf_dict[file_key].get("lights_off",
+                                                                                          default_lights_off)
                 cur_json_dict["inf_config"]["lights_on"] = lights_edf_dict[file_key].get("lights_on", default_lights_on)
                 print_log(f"Lights off: {cur_json_dict['inf_config']['lights_off']}, Lights on: "
                           f"{cur_json_dict['inf_config']['lights_on']}")
@@ -211,14 +217,20 @@ def run_using_json_file(json_file: str):
                     log_msg = f'No data exclusion file found for current study ({edf_filename}): {str(data_exclusion_file)}'
                 print_log(log_msg, 'info')
 
-            score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict, bypass_edf_check=bypass_edf_check)
+            score, diagnosis_str = run_study(edfFile, json_configuration=cur_json_dict,
+                                             bypass_edf_check=bypass_edf_check)
             pass_fail_dictionary[edfFile] = True
 
             if diagnosis_str is None:
                 result_str = 'Narcoleposy Diagnosis Not Performed'
             else:
                 result_str = f'[run_stanford_stages.py] Score: {score:0.4f}.  Diagnosis: {diagnosis_str}'
-            print_log(result_str, 'STAGES')
+
+            if progress_cb is not None:
+                time_elapsed_from_last_update = time.time() - last_update_time
+                if time_elapsed_from_last_update > 3:
+                    last_update_time = time.time()
+                    progress_cb(index/num_edfs*100, index, edfFile, msg+' '+result_str)
 
         except KeyboardInterrupt:
             print_log('\nUser cancel ...', 'info')
@@ -230,7 +242,7 @@ def run_using_json_file(json_file: str):
             print_log("{0}: {1}".format(type(err).__name__, err), 'error')
         except MissingRequiredChannelError as err:
             print_log("Missing required channel(s):\n{0}".format(err), 'error')
-        except (RunStagesError, narcoApp.StanfordStagesError) as err:
+        except (RunStagesError, narco_app.StanfordStagesError) as err:
             print_log(f'{type(err).__name__}: {err.message}  ({err.edf_filename})', 'error')
         except IndexError as err:
             print_log("{0}: {1}".format(type(err).__name__, err), 'error')
@@ -276,8 +288,12 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
     # display_set_selection(edf_channel_labels_found)
 
     if 'inf_config' in json_configuration:
-        json_configuration['inf_config']['lights_off'] = edftime2elapsedseconds(edf_file, json_configuration['inf_config'].get('lights_off', None))
-        json_configuration['inf_config']['lights_on'] = edftime2elapsedseconds(edf_file, json_configuration['inf_config'].get('lights_on', None))
+        json_configuration['inf_config']['lights_off'] = edftime2elapsedseconds(edf_file,
+                                                                                json_configuration['inf_config'].get(
+                                                                                    'lights_off', None))
+        json_configuration['inf_config']['lights_on'] = edftime2elapsedseconds(edf_file,
+                                                                               json_configuration['inf_config'].get(
+                                                                                   'lights_on', None))
 
     # Build up our dictionary / channel index mapping
     if 'channel_indices' not in json_configuration:
@@ -328,7 +344,7 @@ def run_study(edf_file, json_configuration: {}, bypass_edf_check: bool = False):
             raise MissingRequiredChannelError(cannot_continue_msg)
         json_configuration["channel_indices"] = edf_channel_indices_available
 
-    return narcoApp.main(str(edf_file), json_configuration)
+    return narco_app.main(str(edf_file), json_configuration)
 
 
 def get_bad_data_events(events_filename):
@@ -355,11 +371,11 @@ def load_lights_from_csv_file(lights_filename):
             # f_csv = csv.DictReader(fid)
             f_csv = csv.reader(fid)
             # headings = next(f_csv)
-            #Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
+            # Row = namedtuple('Row', ['filename', 'lights_on', 'lights_off'])
             for line in f_csv:
-                #row = Row(*line)
+                # row = Row(*line)
                 lights_dict[line[0]] = dict(zip(('lights_off', 'lights_on'), line[1:3]))
-                #lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
+                # lights_dict[row.filename] = {'lights_on': row.lights_on, 'lights_off': row.lights_off}
 
     return lights_dict
 
@@ -367,20 +383,21 @@ def load_lights_from_csv_file(lights_filename):
 def edftime2elapsedseconds(edf_file, time_value):
     if isinstance(time_value, str) and ":" in time_value:
         if edf_file is None or not Path(edf_file).exists():
-            raise(ValueError('Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
+            raise (ValueError(
+                'Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
         else:
             study_start_time_seconds = inf_tools.get_study_starttime_as_seconds(edf_file)
             if study_start_time_seconds is None:
-                raise(RunStagesError('Unable to find start time for edf file'))
+                raise (RunStagesError('Unable to find start time for edf file'))
             time_hh_mm_ss = time_value.split(':')
             convert_hh_mm_ss = [3600, 60, 1, 0.001]
             time_value_seconds = 0
             for idx, value in enumerate(time_hh_mm_ss):
-                time_value_seconds = time_value_seconds + int(value)*convert_hh_mm_ss[idx]
+                time_value_seconds = time_value_seconds + int(value) * convert_hh_mm_ss[idx]
 
             elapsed_seconds = time_value_seconds - study_start_time_seconds
             if elapsed_seconds < 0:
-                elapsed_seconds = elapsed_seconds+24*3600
+                elapsed_seconds = elapsed_seconds + 24 * 3600
     else:
         elapsed_seconds = time_value
 

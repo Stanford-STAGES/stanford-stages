@@ -18,7 +18,7 @@ import numpy as np
 import pyedflib
 import scipy.io as sio  # for noise level
 import scipy.signal as signal  # for edf channel sampling and filtering
-import skimage
+
 import tensorflow as tf
 from pandas import read_csv
 from scipy.fftpack import fft, ifft, fftshift
@@ -159,7 +159,7 @@ class Hypnodensity(object):
                 self._hypnodensity_features[model] = _features[model]
                 _features = _features[model]
             else:
-                print('import_features requires model and idx both be included or both be excluded.  One of the two was given and so nothing was imported :(')
+                print('import_features requires model name, when provided as an argument, to exist as a key in the imported file.  A model name was provided but not found in the import file; so nothing imported :(')
         return _features
 
     def export_hypnodensity(self, p=None):
@@ -369,7 +369,6 @@ class Hypnodensity(object):
         # there is more than 5 minutes of flat line data and also when the lights are on.
         hypnogram[np.isnan(hypno[:, 0])] = 7
         return hypnogram
-
 
     def encoding(self):
 
