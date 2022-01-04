@@ -30,6 +30,27 @@ The stanford-stages application is most readily configured and used by editing t
 
 _Note_: These instruction are for the master branch.
 
+## Installation and Dependencies
+
+Special thanks to Giorgio for the following instructions:
+
+After being able to construct the correct environment from the initial __requirements.txt__ file of Stanford Stages. I wanted to share the libraries I used, as well the source from where I downloaded the once not available through conda/pip command. Attached to this email you can find the ‘requierment.txt’ from my final environment (Py 3.7.1). Although, to construct the environment I had to install the libraries in a certain order to avoid inconsistency error. The pipeline was the following:
+
+```
+conda update -n base -c defaults conda
+conda install -c conda-forge tensorflow==2.6.0
+conda install -c conda-forge pandas==0.25.1
+conda install -c conda-forge scikit-image==0.15.0
+conda install -c conda-forge pyedflib
+pip install C:\Users\giorg\Downloads\GPflow-2.1.4.tar.gz
+conda install -c conda-forge PyWavelets==1.0.3
+conda install -c conda-forge numpy==1.19.5
+conda install -c conda-forge scipy==1.3.2
+```
+`gpflow==2.1.4` --> https://github.com/GPflow/GPflow/releases/tag/v2.1.4
+
+The package `tf_nightly_2.0_preview` was not installed and it worked properly, as far as I understood tensforlow installs it as a dependency. In any case it can be found here:  `tf_nightly_2.0_preview` -> https://pypi.org/project/tensorflow/2.0.0b1/
+
 ## Running the application
 
 The __run_stanford_stages.py__ script can be called from within the Python runtime environment, or by using one of the shell or batch scripts included below.
