@@ -210,11 +210,13 @@ class Hypnodensity(object):
                 print(f"Pickle encode data to: {p}")
                 with p.open('wb') as fp:
                     pickle.dump(self.encoded_data, fp)
+                    pickle.dump(self.channels_used, fp)
                 print(f"Encode data pickled to: {p}\n")
             else:
-                print("Not in a pickle!")
+                # print("Not in a pickle!")
                 with h5py.File(p, 'w') as fp:
                     fp['encodedD'] = self.encoded_data
+                    fp['channels_used'] = np.array(list(self.channels_used.keys()), dtype='S')
                 self.myprint(".h5 exporting done")
             return True
         else:
