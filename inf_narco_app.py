@@ -23,6 +23,7 @@ from inf_hypnodensity import Hypnodensity  # from inf_extract_features import Ex
                                            # inf_hypnodensity.py
 
 from inf_narco_model import NarcoModel
+from inf_tools import StanfordStagesError
 
 # for auditing code speed.
 import time
@@ -40,14 +41,6 @@ DEFAULT_MINUTES_PER_EPOCH = 0.5  # 30/60 or DEFAULT_SECONDS_PER_EPOCH/60;
 # Ref: https://www.nature.com/articles/s41467-018-07229-3
 NARCOLEPSY_PREDICTION_CUTOFF = -0.03
 DIAGNOSIS = ["Other", "Narcolepsy type 1"]
-
-
-class StanfordStagesError(Exception):
-    def __init__(self, message, edf_filename=''):
-        self.message = message
-        if isinstance(edf_filename, Path):
-            edf_filename = str(edf_filename)
-        self.edf_filename = edf_filename
 
 
 def main(edf_filename: str = None,

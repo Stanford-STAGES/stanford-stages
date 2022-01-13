@@ -43,9 +43,9 @@ Both EOG channels, a chin EMG channel, and at least one central and one occipita
 
 These settings override default configurations that are found in the __inf_config.py__ file.  The location of model paths must be updated with the location of the model files provided through the external links on the main readme page and which must be downloaded and extracted for use.
   
-* ### `hypnodensity_model_dir`
+* ### `hypnodensity_model_root_path`
 
-  The location of the hypnodensity models which are used to score sleep stages.  Download these models from the links located on in the repository's readme file.
+  The location of the path which holds the hypnodensity models used for scoring sleep stages.  Download these models from the links located on in the repository's readme file.
 
 * ### `narcolepsy_classifier_path`
 

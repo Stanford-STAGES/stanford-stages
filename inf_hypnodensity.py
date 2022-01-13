@@ -25,7 +25,7 @@ from scipy.fftpack import fft, ifft, fftshift
 from inf_config import ACConfig
 from inf_narco_features import HypnodensityFeatures
 from inf_network import SCModel
-from inf_tools import myprint, softmax, rolling_window_nodelay
+from inf_tools import myprint, softmax, rolling_window_nodelay, StanfordStagesError
 from pkg_resources import resource_filename
 
 
@@ -781,6 +781,9 @@ class Hypnodensity(object):
             # config.gpu_options.per_process_gpu_memory_fraction = 1.0
             with tf.compat.v1.Session(config=config) as session:
                 ckpt = tf.compat.v1.train.get_checkpoint_state(ac_config.hypnodensity_model_dir)
+
+                if ckpt is None:
+                    raise StanfordStagesError(f"Hypnodensity model directory is empty or does not exist ('{ac_config.hypnodensity_model_dir}')")
 
                 s.restore(session, ckpt.model_checkpoint_path)
 
