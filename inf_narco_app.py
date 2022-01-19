@@ -27,6 +27,7 @@ from inf_narco_model import NarcoModel
 # for auditing code speed.
 import time
 
+
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
