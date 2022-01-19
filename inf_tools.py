@@ -10,6 +10,14 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+class StanfordStagesError(Exception):
+    def __init__(self, message, edf_filename=''):
+        self.message = message
+        if isinstance(edf_filename, Path):
+            edf_filename = str(edf_filename)
+        self.edf_filename = edf_filename
+
+
 def print_log(msg: str, log_level: str = 'info'):
     print(msg)
     if log_level in ['warning', 'debug', 'critical', 'error', 'info']:

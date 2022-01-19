@@ -51,12 +51,12 @@ class AppConfig(object):
         # Make it easier to run stanford-stages code from other repositories, or scripts in other directories.
         this_path = Path(__file__).parent.absolute()
         self.psg_noise_file_pathname = str(this_path.joinpath('ml/noiseM.mat'))
-        self.hypnodensity_model_root_path = str(this_path.joinpath('ml/'))
+        self.hypnodensity_model_root_path = str(this_path.joinpath('ml/ac'))
         self.hypnodensity_scale_path = str(this_path.joinpath('ml/scaling/'))
 
-        self.psg_noise_file_pathname = 'F:/ml/noiseM.mat'
-        self.hypnodensity_model_root_path = 'F:/ml/'
-        self.hypnodensity_scale_path = 'F:/ml/scaling/'
+        # self.psg_noise_file_pathname = 'F:/ml/noiseM.mat'
+        # self.hypnodensity_model_root_path = 'F:/ml/'
+        # self.hypnodensity_scale_path = 'F:/ml/scaling/'
 
         # Related to classifying narcolepsy from hypnodensity features
         self.narco_classifier_path: str = str(this_path.joinpath('ml/gp/'))

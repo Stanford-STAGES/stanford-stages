@@ -243,7 +243,7 @@ def run_using_json_file(json_file: str, progress_cb=None):
         except MissingRequiredChannelError as err:
             print_log("Missing required channel(s):\n{0}".format(err), 'error')
         except (RunStagesError, narco_app.StanfordStagesError) as err:
-            print_log(f'{type(err).__name__}: {err.message}  ({err.edf_filename})', 'error')
+            print_log(f'{type(err).__name__}: {err.message}  ({err.edf_filename if err.edf_filename != "" else edf_filename})', 'error')
         except IndexError as err:
             print_log("{0}: {1}".format(type(err).__name__, err), 'error')
             traceback.print_exc()
