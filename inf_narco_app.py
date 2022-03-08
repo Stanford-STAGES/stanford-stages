@@ -20,14 +20,13 @@ import numpy as np
 
 from inf_config import AppConfig  # for AppConfig() <-- narco_biomarker(), [previously]
 from inf_hypnodensity import Hypnodensity  # from inf_extract_features import ExtractFeatures --> moved to
-                                           # inf_hypnodensity.py
+# inf_hypnodensity.py
 
 from inf_narco_model import NarcoModel
 from inf_tools import StanfordStagesError
 
 # for auditing code speed.
 import time
-
 
 warnings.simplefilter('ignore', FutureWarning)  # warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
@@ -45,7 +44,8 @@ DIAGNOSIS = ["Other", "Narcolepsy type 1"]
 
 
 def main(edf_filename: str = None,
-         config_input: {} = None, config_filename: str = None):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
+         config_input: {} = None,
+         config_filename: str = None):  # configInput is object with additional settings.   'channel_indices', 'lightsOff','lightsOn'
 
     err_msg = ''
     if edf_filename is None:
@@ -117,7 +117,7 @@ def main(edf_filename: str = None,
                 else:
                     setattr(app_config, key, value)
         if app_config.narco_prediction_selected_features is None:
-            print('No narcolepsy feature set.')
+            print('No narcolepsy feature set. Number of selected features: 0')
         else:
             print('Number of selected features is:', len(app_config.narco_prediction_selected_features))
     else:
@@ -135,7 +135,6 @@ def main(edf_filename: str = None,
                         app_config.channels_used[channel_label[i]] = channel_index[i]
                 else:
                     app_config.channels_used[channel_label] = channel_index
-
 
     # app_config.lightsOff = config_input.get('lightsOff', [])
     # app_config.lightsOn = config_input.get('lightsOn', [])
@@ -218,23 +217,21 @@ def main(edf_filename: str = None,
                                  or hyp['show']['hypnodensity'] or app_config.saveHypnodensity
                                  or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
                                  or hyp['show']['plot'] or hyp['save']['plot'])
-    app_config.hypnodensitySaveOnly = app_config.saveHypnodensity and \
-                                      not(hyp['show']['hypnogram'] or hyp['save']['hypnogram']
-                                          or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec']
-                                          or hyp['show']['hypnodensity']
-                                          or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
-                                          or hyp['show']['plot'] or hyp['save']['plot'])
 
-    app_config.diagnosisSaveOnly = hyp['save']['diagnosis'] and not (hyp['show']['hypnogram'] or hyp['show']['hypnogram_30_sec']
-                                 or hyp['show']['hypnodensity'] or hyp['show']['diagnosis']
-                                 or hyp['show']['plot'] or hyp['save']['plot'])
+    requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
+    app_config.hypnodensitySaveOnly = app_config.saveHypnodensity and not(requires_features or hyp['show']['hypnogram'] or hyp['save']['hypnogram'] or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec'] or hyp['show']['plot'] or hyp['save']['plot'] or hyp['show']['hypnodensity'])
+
+    app_config.diagnosisSaveOnly = hyp['save']['diagnosis'] and not (
+            hyp['show']['hypnogram'] or hyp['show']['hypnogram_30_sec']
+            or hyp['show']['hypnodensity'] or hyp['show']['diagnosis']
+            or hyp['show']['plot'] or hyp['save']['plot'])
 
     prediction = None
     diagnosis = None
     if app_config.encodeOnly and Path(app_config.encodeFilename).exists():
         logger.debug('Skipping.  Encoding file already exists: %s', app_config.encodeFilename)
     elif app_config.hypnodensitySaveOnly and Path(hyp['filename']['hypnodensity_h5']).exists():
-        logger.debug('Skipping.  Hypnodensity file already exists: %s', str(hyp['filename']['hypnodensity_pkl']))
+        logger.debug('Skipping.  Hypnodensity file already exists: %s', str(hyp['filename']['hypnodensity_h5']))
     elif app_config.diagnosisSaveOnly and Path(hyp['filename']['diagnosis']).exists():
         logger.debug('Skipping.  Diagnosis output file file already exists: %s', str(hyp['filename']['diagnosis']))
     else:
@@ -269,16 +266,14 @@ def main(edf_filename: str = None,
         if hypno_config['show']['hypnodensity']:
             print("Hypnodensity:")
             hypnodensity = narco_app.get_hypnodensity()
-            np.set_printoptions(threshold=10000*5, linewidth=150)
+            np.set_printoptions(threshold=10000 * 5, linewidth=150)
             print(hypnodensity)
 
         if hypno_config['save']['hypnodensity_txt']:
             narco_app.save_hypnodensity(filename=hypno_config['filename']['hypnodensity_txt'])
 
         # The following portion concerns the narcolepsy classification partion
-        requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
         if requires_features:
-
             narco_app.calculate_all_hypnodensity_features(import_ok=True)
             if hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl']:
                 if hypno_config['save']['features_h5']:
@@ -310,7 +305,8 @@ def main(edf_filename: str = None,
 def time2elapsedseconds(edf_file, time_value):
     if isinstance(time_value, str) and ":" in time_value:
         if edf_file is None or not edf_file.exists():
-            raise(ValueError('Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
+            raise (ValueError(
+                'Cannot convert time stamp to elapsed seconds from the study start because an EDF file, which contains the study start time, was not found.'))
         else:
             study_start_time_seconds = edf_file.start_time
             elapsed_seconds = study_start_time_seconds
@@ -318,20 +314,20 @@ def time2elapsedseconds(edf_file, time_value):
     else:
         return time_value
 
+
 def change_file_extension(fullname, new_extension):
     basename, _ = os.path.splitext(fullname)
     return basename + new_extension
 
 
 def render_hypnodensity(hypnodensity, show_plot=False, save_plot=False, filename='tmp.png'):
-
     if show_plot or save_plot:
         # Remove any rows with nan values
         hypnodensity = hypnodensity[~np.isnan(hypnodensity[:, 0]), :]
         fig, ax = plt.subplots(figsize=[11, 5])
         av = np.cumsum(hypnodensity, axis=1)
         c = [[0.90, 0.19, 0.87],  # pink
-             [0.2, 0.89, 0.93],   # aqua/turquoise
+             [0.2, 0.89, 0.93],  # aqua/turquoise
              [0.22, 0.44, 0.73],  # blue
              [0.34, 0.70, 0.39]]  # green
 
@@ -358,7 +354,6 @@ def render_hypnodensity(hypnodensity, show_plot=False, save_plot=False, filename
 
 
 class NarcoApp(object):
-
     edf_filename: Path
     _hypnodensity: Hypnodensity
 
