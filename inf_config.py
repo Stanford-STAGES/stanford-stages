@@ -169,7 +169,15 @@ class Config(object):
     def __init__(self, scope, num_features, num_hidden, segsize, lstm, num_classes, batch_size, max_train_len, atonce,
                  restart=True, model_name='small_lstm', is_train=False, root_model_dir='./'):
 
-        self.hypnodensity_model_dir = os.path.join(root_model_dir, scope, model_name)
+        # Initially there were several different scopes to consider.  Over time, the 'ac' scope became the dominant choice
+        # The check for scope matching the path stem is an attempt not to penalize users for including the 'ac' subpath
+        # as part of their root model directory (e.g in their configuration file)
+        root_model_path = Path(root_model_dir)
+        if root_model_path.stem == scope:
+            self.hypnodensity_model_dir = os.path.join(root_model_dir, model_name)
+        else:
+            self.hypnodensity_model_dir = os.path.join(root_model_dir, scope, model_name)
+
         self.model_name = model_name
         self.scope = scope
 
