@@ -100,7 +100,7 @@ def run_using_json_file(json_file: str, progress_cb=None):
 
     num_edfs = len(edf_files)
     if num_edfs == 0:
-        if 'edf_pathname' is not None:
+        if psg_path is not None:
             print_log(
                 f'{num_edfs} .edf files found at the edf_pathname ("{psg_path}") specified in "{json_file}"!  '
                 f'Nothing to do.', 'error')

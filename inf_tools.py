@@ -39,7 +39,7 @@ def get_h5_filenames(path2check):
 
 
 def get_edf_files(path2check):
-    return get_files_with_ext(path2check,'edf')
+    return get_files_with_ext(path2check, 'edf')
 
     # p = Path(path2check)
     # # verify that we have an accurate directory
