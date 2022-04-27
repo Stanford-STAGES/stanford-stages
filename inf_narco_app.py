@@ -211,14 +211,18 @@ def main(edf_filename: str = None,
     app_config.save_hypnodensity_pkl = hyp['save']['hypnodensity_pkl']
     app_config.saveHypnodensity = app_config.save_hypnodensity_h5 or app_config.save_hypnodensity_txt or app_config.save_hypnodensity_pkl
 
+    requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or \
+                        hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
+
     app_config.encodeFilename = hyp['filename']['encoding']
-    app_config.encodeOnly = not (hyp['show']['hypnogram'] or hyp['save']['hypnogram']
+    app_config.encodeOnly = not (requires_features
+                                 or hyp['show']['hypnogram'] or hyp['save']['hypnogram']
                                  or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec']
                                  or hyp['show']['hypnodensity'] or app_config.saveHypnodensity
                                  or hyp['show']['diagnosis'] or hyp['save']['diagnosis']
                                  or hyp['show']['plot'] or hyp['save']['plot'])
 
-    requires_features = hypno_config['save']['features_h5'] or hypno_config['save']['features_pkl'] or hypno_config['show']['diagnosis'] or hypno_config['save']['diagnosis']
+
     app_config.hypnodensitySaveOnly = app_config.saveHypnodensity and not(requires_features or hyp['show']['hypnogram'] or hyp['save']['hypnogram'] or hyp['show']['hypnogram_30_sec'] or hyp['save']['hypnogram_30_sec'] or hyp['show']['plot'] or hyp['save']['plot'] or hyp['show']['hypnodensity'])
 
     app_config.diagnosisSaveOnly = hyp['save']['diagnosis'] and not (
