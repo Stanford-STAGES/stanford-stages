@@ -137,10 +137,10 @@ The x-axis of the hypnodensity plot represents the epochs from the beginning to 
 
 The sleep staging classification models are hosted externally at the following location:
 
-* ac.zip - www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
+* ac.zip - https://www.informaton.org/narco/ml/ac.zip [770 MiB, 807 MB]
 * <strike>gp.zip</strike>*
  
-Download and extract the [ac.zip](www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG (.edf file) are necessary for the software to run.  The .zip file may be deleted once its contents have been extracted.  
+Download and extract the [ac.zip](https://www.informaton.org/narco/ml/ac.zip) file to your computer system.  These models, along with a PSG (.edf file) are necessary for the software to run.  The .zip file may be deleted once its contents have been extracted.  
 
 See the JSON configuration instructions for how to specify the location model locations for use with the software.
    
