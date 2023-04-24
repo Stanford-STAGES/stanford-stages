@@ -1,5 +1,5 @@
 #!/bin/sh
-FILENAME="/Users/unknown/data/sleep/narcoTest/CHP040.edf"
+FILENAME="/home/castlehoney/repos/course/dl/stanford-stages/chp040.edf"
 
 # Removes both pickle files:
 # rm /Users/unknown/data/sleep/narcoTest/CHP040.*pkl
