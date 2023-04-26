@@ -85,58 +85,58 @@ def conv_block(config, inputs, scope_name, fShape, stride):
         return conv
 
 
-def conv2d_block(config, inputs, scope_name, fShape, stride):
+def conv2d_block(is_training, inputs, scope_name, fShape, stride):
     with tf.variable_scope(scope_name) as scope:
         kernel = _variable_with_weight_decay('weights', shape=fShape,
                                              stddev=1e-3, wd=0.00001)
         conv = tf.nn.conv3d(inputs, kernel, [1, 1, stride[0], stride[1], 1], padding='SAME')
         biases = _variable_on_cpu('biases', fShape[4], tf.constant_initializer(0.0))
         bias = tf.nn.bias_add(conv, biases)
-        bnormed = batch_norm(bias, fShape[4], [0, 1, 2, 3], config.is_training, scope=scope_name)
+        bnormed = batch_norm(bias, fShape[4], [0, 1, 2, 3], is_training, scope=scope_name)
         conv = tf.nn.relu(bnormed, name=scope.name)
         # _activation_summary(conv)
 
         return conv
 
 
-def small_autocorr(inputs, config, modality, batch_size):
+def small_autocorr(inputs, is_training, segment_size, modality, batch_size):
     if modality == 'eeg':
         nIn = 2
         nOut = [64, 128, 256]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 2, 200])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
         nIn = 3
         nOut = [64, 128, 256]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 3, 400])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[4, 2], [2, 1]]
     else:
         nIn = 1
         nOut = [16, 32, 64]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 1, 40])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(config, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
 
     pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool1' + modality)
 
-    conv3 = conv2d_block(config, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
+    conv3 = conv2d_block(is_training, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
 
-    conv4 = conv2d_block(config, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv4 = conv2d_block(conis_trainingfig, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
 
     pool2 = tf.nn.max_pool3d(conv4, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool2' + modality)
 
-    conv5 = conv2d_block(config, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
+    conv5 = conv2d_block(is_training, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
 
-    conv6 = conv2d_block(config, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv6 = conv2d_block(is_training, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
 
     meanPool = tf.reduce_mean(conv6, 2, name='mean_pool1' + modality)
 
@@ -145,48 +145,48 @@ def small_autocorr(inputs, config, modality, batch_size):
     return meanPool
 
 
-def large_autocorr(inputs, config, modality, batch_size):
+def large_autocorr(inputs, is_training, segment_size, modality, batch_size):
     if modality == 'eeg':
         nIn = 2
         nOut = [64, 128, 256, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 2, 200])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
         nIn = 3
         nOut = [64, 128, 256, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 3, 400])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[4, 2], [2, 1]]
     else:
         nIn = 1
         nOut = [16, 32, 64, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 1, 40])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(config, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
 
     pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool1' + modality)
 
-    conv3 = conv2d_block(config, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
-    conv4 = conv2d_block(config, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv3 = conv2d_block(is_training, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
+    conv4 = conv2d_block(is_training, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
 
     pool2 = tf.nn.max_pool3d(conv4, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool2' + modality)
 
-    conv5 = conv2d_block(config, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
-    conv6 = conv2d_block(config, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv5 = conv2d_block(is_training, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
+    conv6 = conv2d_block(is_training, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
 
     pool3 = tf.nn.max_pool3d(conv5, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool3' + modality)
 
-    conv7 = conv2d_block(config, pool3, 'conv7' + modality, [1, 3, 3, nOut[2], nOut[3]], [1, 1])
-    conv8 = conv2d_block(config, conv7, 'conv8' + modality, [1, 3, 3, nOut[3], nOut[3]], [1, 1])
+    conv7 = conv2d_block(is_training, pool3, 'conv7' + modality, [1, 3, 3, nOut[2], nOut[3]], [1, 1])
+    conv8 = conv2d_block(is_training, conv7, 'conv8' + modality, [1, 3, 3, nOut[3], nOut[3]], [1, 1])
 
     meanPool = tf.reduce_mean(conv8, 2, name='mean_pool1' + modality)
 
@@ -195,51 +195,49 @@ def large_autocorr(inputs, config, modality, batch_size):
     return meanPool
 
 
-def random_autocorr(inputs, config, modality, batch_size):
+def random_autocorr(inputs, is_training, segment_size, modality, batch_size):
+    np.random.seed(0)
     if modality == 'eeg':
-        np.random.seed(int(config.model_name[-2:]) + 1)
         nIn = 2
         nOut = [np.random.randint(32, 96),
                 np.random.randint(64, 192),
                 np.random.randint(128, 384)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 2, 200])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
-        np.random.seed(int(config.model_name[-2:]) + 2)
         nIn = 3
         nOut = [np.random.randint(32, 96),
                 np.random.randint(64, 192),
                 np.random.randint(128, 384)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 3, 400])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[4, 2], [2, 1]]
     else:
-        np.random.seed(int(config.model_name[-2:]) + 3)
         nIn = 1
         nOut = [np.random.randint(8, 24),
                 np.random.randint(16, 48),
                 np.random.randint(32, 96)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, config.segsize, 1, 40])
+        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
         inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
 
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(config, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
 
     pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool1' + modality)
 
-    conv2 = conv2d_block(config, pool1, 'conv2' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
-    conv3 = conv2d_block(config, conv2, 'conv3' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv2 = conv2d_block(is_training, pool1, 'conv2' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
+    conv3 = conv2d_block(is_training, conv2, 'conv3' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
 
     pool2 = tf.nn.max_pool3d(conv3, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
                              padding='SAME', name='pool2' + modality)
 
-    conv4 = conv2d_block(config, pool2, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
-    conv5 = conv2d_block(config, conv4, 'conv5' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv4 = conv2d_block(is_training, pool2, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
+    conv5 = conv2d_block(is_training, conv4, 'conv5' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
 
     meanPool = tf.reduce_mean(conv5, 2, name='mean_pool1' + modality)
 
@@ -248,13 +246,13 @@ def random_autocorr(inputs, config, modality, batch_size):
     return meanPool
 
 
-def main(inputs, config, modality, batch_size):
-    if config.model_name[0:2] == 'ac':
-        if config.model_name[3:5] == 'lh':
-            hidden = large_autocorr(inputs, config, modality, batch_size)
-        elif config.model_name[3:5] == 'rh':
-            hidden = random_autocorr(inputs, config, modality, batch_size)
+def main(inputs, model_name, is_training, segment_size, modality, batch_size):
+    if model_name[0:2] == 'ac':
+        if model_name[3:5] == 'lh':
+            hidden = large_autocorr(inputs, is_training, segment_size, modality, batch_size)
+        elif model_name[3:5] == 'rh':
+            hidden = random_autocorr(inputs, is_training, segment_size, modality, batch_size)
         else:
-            hidden = small_autocorr(inputs, config, modality, batch_size)
+            hidden = small_autocorr(inputs, is_training, segment_size, modality, batch_size)
 
     return hidden
