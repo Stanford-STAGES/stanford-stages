@@ -19,5 +19,6 @@ ml/gp
 *.edf
 *.txt
 *.png
+*.pkl
 
 !requirements.txt
