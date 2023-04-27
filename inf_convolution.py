@@ -1,6 +1,5 @@
-import re
-import tensorflow as tf
-import numpy as np
+import torch
+import torch.nn.functional as F
 
 
 def batch_norm(x, n_out, av_dims, is_training, scope='bn'):
@@ -14,19 +13,19 @@ def batch_norm(x, n_out, av_dims, is_training, scope='bn'):
     Return:
         normed:      batch-normalized maps
     """
-    with tf.variable_scope(scope):
-        beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
-                           name='beta', trainable=True)
-        gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
-                            name='gamma', trainable=True)
-        batch_mean, batch_var = tf.nn.moments(x, av_dims, name='moments')
-
-        ema = tf.train.ExponentialMovingAverage(decay=0.99)
-
-    # phase_train = tf.get_variable('is_training',[],dtype=bool,trainable=False,initializer=tf.constant_initializer(True))
-    phase_train = tf.constant(True, dtype=bool, name='is_training')
-    if not (is_training):
-        phase_train = tf.logical_not(phase_train, name='is_not_training')
+    with torch.no_grad():
+        beta = torch.zeros(n_out, requires_grad=True)
+        gamma = torch.ones(n_out, requires_grad=True)
+        running_mean = torch.zeros(n_out)
+        running_var = torch.ones(n_out)
+    if is_training:
+        batch_mean, batch_var = torch.mean(x, dim=av_dims), torch.var(x, dim=av_dims)
+        running_mean = 0.99 * running_mean + 0.01 * batch_mean.detach()
+        running_var = 0.99 * running_var + 0.01 * batch_var.detach()
+        normed = F.batch_norm(x, running_mean, running_var, beta, gamma, eps=1e-3, training=True)
+    else:
+        normed = F.batch_norm(x, running_mean, running_var, beta, gamma, eps=1e-3, training=False)
+    return normed
 
     # phase_train = tf.Print(phase_train,[phase_train])
     def mean_var_with_update():
@@ -52,49 +51,43 @@ def _activation_summary(x):
 
 
 def _variable_on_cpu(name, shape, initializer):
-    with tf.device('/cpu:0'):
-        dtype = tf.float32
-        var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype, trainable=True)
-        return var
+    dtype = torch.float32
+    var = torch.nn.Parameter(initializer(torch.empty(shape), dtype=dtype), requires_grad=True)
+    return var
 
 
 def _variable_with_weight_decay(name, shape, stddev, wd):
-    dtype = tf.float32
-    var = _variable_on_cpu(
-        name,
-        shape,
-        tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
+    dtype = torch.float32
+    initializer = torch.nn.init.truncated_normal_
+    var = _variable_on_cpu(name, shape, lambda x, dtype=dtype: initializer(x, mean=0, std=stddev, dtype=dtype))
+    
     if wd is not None:
-        weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-        tf.add_to_collection('losses', weight_decay)
-
+        weight_decay = wd * torch.sum(var ** 2)
+        torch.nn.init.zeros_(weight_decay)
+        torch.autograd.backward([weight_decay], retain_graph=True)
+    
     return var
 
 
 def conv_block(config, inputs, scope_name, fShape, stride):
-    with tf.variable_scope(scope_name) as scope:
+    with torch.autograd.profiler.record_function(scope_name):
         kernel = _variable_with_weight_decay('weights', shape=fShape,
                                              stddev=1e-3, wd=0.000001)
-        conv = tf.nn.conv2d(inputs, kernel, [1, 1, stride, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', fShape[3], tf.constant_initializer(0.0))
-        bias = tf.nn.bias_add(conv, biases)
-        bnormed = batch_norm(bias, fShape[3], [0, 1, 2], config.is_training, scope=scope_name)
-        conv = tf.nn.relu(bnormed, name=scope.name)
+        conv = torch.nn.functional.conv2d(inputs, kernel, stride=(1, stride), padding=(0, 1))
+        biases = _variable_on_cpu('biases', fShape[3], torch.nn.init.constant_)
+        bias = torch.nn.functional.bias_add(conv, biases)
+        bnormed = batch_norm(bias, fShape[3], [0, 2, 3], config.is_training, scope=scope_name)
+        conv = torch.nn.functional.relu(bnormed, inplace=True)
         # _activation_summary(conv)
 
         return conv
 
 
 def conv2d_block(is_training, inputs, scope_name, fShape, stride):
-    with tf.variable_scope(scope_name) as scope:
-        kernel = _variable_with_weight_decay('weights', shape=fShape,
-                                             stddev=1e-3, wd=0.00001)
-        conv = tf.nn.conv3d(inputs, kernel, [1, 1, stride[0], stride[1], 1], padding='SAME')
-        biases = _variable_on_cpu('biases', fShape[4], tf.constant_initializer(0.0))
-        bias = tf.nn.bias_add(conv, biases)
-        bnormed = batch_norm(bias, fShape[4], [0, 1, 2, 3], is_training, scope=scope_name)
-        conv = tf.nn.relu(bnormed, name=scope.name)
-        # _activation_summary(conv)
+    with torch.nn.ModuleList(scope_name) as scope:
+        conv = torch.nn.Conv3d(inputs, fShape[4], kernel_size=fShape[:3], stride=stride, padding='SAME')
+        bnormed = torch.nn.BatchNorm3d(fShape[4])(conv)
+        conv = F.relu(bnormed, name=scope_name)
 
         return conv
 
@@ -103,151 +96,141 @@ def small_autocorr(inputs, is_training, segment_size, modality, batch_size):
     if modality == 'eeg':
         nIn = 2
         nOut = [64, 128, 256]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        inputs = inputs.view(batch_size, -1, segment_size, 2, 200).permute(0, 1, 4, 2, 3)
 
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
         nIn = 3
         nOut = [64, 128, 256]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        inputs = inputs.view(batch_size, -1, segment_size, 3, 400).permute(0, 1, 4, 2, 3)
 
         strides = [[4, 2], [2, 1]]
     else:
         nIn = 1
         nOut = [16, 32, 64]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        inputs = inputs.view(batch_size, -1, segment_size, 1, 40).permute(0, 1, 4, 2, 3)
 
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = torch.nn.Conv3d(nIn, nOut[0], kernel_size=(1, 7, 7), stride=(1, strides[0][0], strides[0][1]), padding=(0, 3, 3))(inputs)
+    conv1 = F.relu(conv1)
 
-    pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool1' + modality)
+    pool1 = F.max_pool3d(conv1, kernel_size=(1, 1, 3), stride=(1, 1, 2), padding=(0, 0, 1))
 
-    conv3 = conv2d_block(is_training, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
+    conv3 = torch.nn.Conv3d(nOut[0], nOut[1], kernel_size=(1, 5, 5), stride=(1, strides[1][0], strides[1][1]), padding=(0, 2, 2))(pool1)
+    conv3 = F.relu(conv3)
 
-    conv4 = conv2d_block(conis_trainingfig, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv4 = torch.nn.Conv3d(nOut[1], nOut[1], kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1))(conv3)
+    conv4 = F.relu(conv4)
 
-    pool2 = tf.nn.max_pool3d(conv4, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool2' + modality)
+    pool2 = F.max_pool3d(conv4, kernel_size=(1, 1, 2), stride=(1, 1, 2), padding=(0, 0, 0))
 
-    conv5 = conv2d_block(is_training, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
+    conv5 = torch.nn.Conv3d(nOut[1], nOut[2], kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1))(pool2)
+    conv5 = F.relu(conv5)
 
-    conv6 = conv2d_block(is_training, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv6 = torch.nn.Conv3d(nOut[2], nOut[2], kernel_size=(1, 3, 3), stride=(1, 1, 1), padding=(0, 1, 1))(conv5)
+    conv6 = F.relu(conv6)
 
-    meanPool = tf.reduce_mean(conv6, 2, name='mean_pool1' + modality)
+    meanPool = F.avg_pool3d(conv6, kernel_size=(1, conv6.shape[3], conv6.shape[4]), stride=(1, 1, 1))
 
-    meanPool = tf.reduce_mean(meanPool, 2, name='mean_pool2' + modality)
-
-    return meanPool
+    return meanPool.view(batch_size, -1)
 
 
 def large_autocorr(inputs, is_training, segment_size, modality, batch_size):
     if modality == 'eeg':
         nIn = 2
         nOut = [64, 128, 256, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
-
+        inputs = inputs.view(batch_size, -1, 2, 200, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
         nIn = 3
         nOut = [64, 128, 256, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
-
+        inputs = inputs.view(batch_size, -1, 3, 400, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
         strides = [[4, 2], [2, 1]]
     else:
         nIn = 1
         nOut = [16, 32, 64, 512]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
-
+        inputs = inputs.view(batch_size, -1, 1, 40, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = conv2d_block(inputs, nIn, nOut[0], 'conv1' + modality, strides[0], is_training)
 
-    pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool1' + modality)
+    pool1 = F.max_pool3d(conv1, kernel_size=[1, 3, 3], stride=[1, 2, 2], padding=[0, 1, 1])
 
-    conv3 = conv2d_block(is_training, pool1, 'conv3' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
-    conv4 = conv2d_block(is_training, conv3, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv3 = conv2d_block(pool1, nOut[0], nOut[1], 'conv3' + modality, strides[1], is_training)
+    conv4 = conv2d_block(conv3, nOut[1], nOut[1], 'conv4' + modality, [1, 1], is_training)
 
-    pool2 = tf.nn.max_pool3d(conv4, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool2' + modality)
+    pool2 = F.max_pool3d(conv4, kernel_size=[1, 2, 2], stride=[1, 2, 2], padding=[0, 0, 0])
 
-    conv5 = conv2d_block(is_training, pool2, 'conv5' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
-    conv6 = conv2d_block(is_training, conv5, 'conv6' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv5 = conv2d_block(pool2, nOut[1], nOut[2], 'conv5' + modality, [1, 1], is_training)
+    conv6 = conv2d_block(conv5, nOut[2], nOut[2], 'conv6' + modality, [1, 1], is_training)
 
-    pool3 = tf.nn.max_pool3d(conv5, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool3' + modality)
+    pool3 = F.max_pool3d(conv6, kernel_size=[1, 2, 2], stride=[1, 2, 2], padding=[0, 0, 0])
 
-    conv7 = conv2d_block(is_training, pool3, 'conv7' + modality, [1, 3, 3, nOut[2], nOut[3]], [1, 1])
-    conv8 = conv2d_block(is_training, conv7, 'conv8' + modality, [1, 3, 3, nOut[3], nOut[3]], [1, 1])
+    conv7 = conv2d_block(pool3, nOut[2], nOut[3], 'conv7' + modality, [1, 1], is_training)
+    conv8 = conv2d_block(is_training, conv7, 'conv8' + modality, [nOut[3], nOut[3], 3, 3, 1], [1, 1])
 
-    meanPool = tf.reduce_mean(conv8, 2, name='mean_pool1' + modality)
-
-    meanPool = tf.reduce_mean(meanPool, 2, name='mean_pool2' + modality)
-
-    return meanPool
+    meanPool = F.avg_pool2d(conv8, kernel_size=[conv8.size(2), conv8.size(3)])
+    
+    return meanPool.squeeze()
 
 
 def random_autocorr(inputs, is_training, segment_size, modality, batch_size):
-    np.random.seed(0)
+    torch.manual_seed(0)
     if modality == 'eeg':
         nIn = 2
-        nOut = [np.random.randint(32, 96),
-                np.random.randint(64, 192),
-                np.random.randint(128, 384)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 2, 200])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        nOut = [torch.randint(32, 96, (1,)).item(),
+                torch.randint(64, 192, (1,)).item(),
+                torch.randint(128, 384, (1,)).item()]
+        inputs = inputs.view(batch_size, -1, 2, 200, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
 
         strides = [[3, 2], [2, 1]]
     elif modality == 'eog':
         nIn = 3
-        nOut = [np.random.randint(32, 96),
-                np.random.randint(64, 192),
-                np.random.randint(128, 384)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 3, 400])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        nOut = [torch.randint(32, 96, (1,)).item(),
+                torch.randint(64, 192, (1,)).item(),
+                torch.randint(128, 384, (1,)).item()]
+        inputs = inputs.view(batch_size, -1, 3, 400, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
 
         strides = [[4, 2], [2, 1]]
     else:
         nIn = 1
-        nOut = [np.random.randint(8, 24),
-                np.random.randint(16, 48),
-                np.random.randint(32, 96)]
-        inputs = tf.reshape(inputs, shape=[batch_size, -1, segment_size, 1, 40])
-        inputs = tf.transpose(inputs, perm=[0, 1, 4, 2, 3])
+        nOut = [torch.randint(8, 24, (1,)).item(),
+                torch.randint(16, 48, (1,)).item(),
+                torch.randint(32, 96, (1,)).item()]
+        inputs = inputs.view(batch_size, -1, 1, 40, segment_size)
+        inputs = inputs.permute(0, 1, 3, 4, 2)
 
         strides = [[2, 2], [2, 1]]
 
-    conv1 = conv2d_block(is_training, inputs, 'conv1' + modality, [1, 7, 7, nIn, nOut[0]], strides[0])
+    conv1 = conv2d_block(is_training, inputs, nIn, nOut[0], 'conv1' + modality, [1, 7, 7], strides[0])
 
-    pool1 = tf.nn.max_pool3d(conv1, ksize=[1, 1, 3, 3, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool1' + modality)
+    pool1 = torch.nn.functional.max_pool3d(conv1, kernel_size=[1, 1, 3], stride=[1, 1, 2],
+                             padding=[0, 0, 1])
 
-    conv2 = conv2d_block(is_training, pool1, 'conv2' + modality, [1, 5, 5, nOut[0], nOut[1]], strides[1])
-    conv3 = conv2d_block(is_training, conv2, 'conv3' + modality, [1, 3, 3, nOut[1], nOut[1]], [1, 1])
+    conv2 = conv2d_block(is_training, pool1, nOut[0], nOut[1], 'conv2' + modality, [1, 5, 5], strides[1])
+    conv3 = conv2d_block(is_training, conv2, nOut[1], nOut[1], 'conv3' + modality, [1, 3, 3], [1, 1])
 
-    pool2 = tf.nn.max_pool3d(conv3, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1],
-                             padding='SAME', name='pool2' + modality)
+    pool2 = torch.nn.functional.max_pool3d(conv3, kernel_size=[1, 1, 2], stride=[1, 1, 2],
+                             padding=[0, 0, 0])
 
-    conv4 = conv2d_block(is_training, pool2, 'conv4' + modality, [1, 3, 3, nOut[1], nOut[2]], [1, 1])
-    conv5 = conv2d_block(is_training, conv4, 'conv5' + modality, [1, 3, 3, nOut[2], nOut[2]], [1, 1])
+    conv4 = conv2d_block(is_training, pool2, nOut[1], nOut[2], 'conv4' + modality, [1, 3, 3], [1, 1])
+    conv5 = conv2d_block(is_training, conv4, nOut[2], nOut[2], 'conv5' + modality, [1, 3, 3], [1, 1])
 
-    meanPool = tf.reduce_mean(conv5, 2, name='mean_pool1' + modality)
+    meanPool = torch.mean(conv5, dim=2, keepdim=True, name='mean_pool1' + modality)
 
-    meanPool = tf.reduce_mean(meanPool, 2, name='mean_pool2' + modality)
+    meanPool = torch.mean(meanPool, dim=2, keepdim=False, name='mean_pool2' + modality)
 
     return meanPool
 
 
 def main(inputs, model_name, is_training, segment_size, modality, batch_size):
-    if model_name[0:2] == 'ac':
+    if model_name.startswith('ac'):
         if model_name[3:5] == 'lh':
             hidden = large_autocorr(inputs, is_training, segment_size, modality, batch_size)
         elif model_name[3:5] == 'rh':
