@@ -232,8 +232,12 @@ def main(edf_filename: str = None,
 
     prediction = None
     diagnosis = None
-    if app_config.encodeOnly and Path(app_config.encodeFilename).exists():
-        logger.debug('Skipping.  Encoding file already exists: %s', app_config.encodeFilename)
+    if app_config.encodeOnly:
+        if Path(app_config.encodeFilename).exists():
+            logger.debug('Skipping.  Encoding file already exists: %s', app_config.encodeFilename)
+        else:
+            narco_app = NarcoApp(app_config)
+            narco_app.eval_hypnodensity()
     elif app_config.hypnodensitySaveOnly and Path(hyp['filename']['hypnodensity_h5']).exists():
         logger.debug('Skipping.  Hypnodensity file already exists: %s', str(hyp['filename']['hypnodensity_h5']))
     elif app_config.diagnosisSaveOnly and Path(hyp['filename']['diagnosis']).exists():
@@ -292,9 +296,8 @@ def main(edf_filename: str = None,
                 narco_app.save_diagnosis(filename=hypno_config['filename']['diagnosis'])
 
         # This concerns what is displayed to the screen
-        if not app_config.encodeOnly:
-            render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
-                                save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
+        render_hypnodensity(narco_app.get_hypnodensity(), show_plot=hypno_config['show']['plot'],
+                            save_plot=hypno_config['save']['plot'], filename=hypno_config['filename']['plot'])
         if hyp['show']['diagnosis'] or hyp['save']['diagnosis']:
             prediction = float(narco_app.narcolepsy_probability[0])
             diagnosis = DIAGNOSIS[int(prediction >= NARCOLEPSY_PREDICTION_CUTOFF)]
